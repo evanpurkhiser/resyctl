@@ -139,3 +139,5 @@ resyctl cancel "$CANCEL_TOKEN" --yes \
 - All command output is JSON.
 - `resyctl book` enforces cancellation-fee guardrails by default.
 - Use `resyctl payment-methods` to inspect available payment method IDs.
+- Pass `--raw` if the normalized fields are insufficient — it includes the
+  full underlying Resy response under a top-level `raw` key.
