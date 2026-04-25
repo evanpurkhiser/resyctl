@@ -13,6 +13,10 @@ pub const DEFAULT_LNG: f64 = -74.0060;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
+    /// Include the raw Resy JSON response under the top-level `raw` key.
+    /// Off by default; the curated fields are usually enough.
+    #[arg(long, global = true)]
+    pub raw: bool,
 }
 
 #[derive(Subcommand, Debug)]

@@ -23,16 +23,24 @@ use output::print_json;
 #[tokio::main]
 async fn main() -> ExitCode {
     let cli = Cli::parse();
+    let include_raw = cli.raw;
     let result = run(cli).await;
 
     match result {
-        Ok(output) => match print_json(&output) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                emit_error(&e);
-                ExitCode::from(e.exit_code())
+        Ok(mut output) => {
+            if !include_raw {
+                if let Some(obj) = output.as_object_mut() {
+                    obj.remove("raw");
+                }
             }
-        },
+            match print_json(&output) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    emit_error(&e);
+                    ExitCode::from(e.exit_code())
+                }
+            }
+        }
         Err(e) => {
             emit_error(&e);
             ExitCode::from(e.exit_code())
