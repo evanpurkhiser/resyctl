@@ -1,5 +1,7 @@
 # resyctl
 
+[![Build Status](https://github.com/evanpurkhiser/resyctl/actions/workflows/main.yml/badge.svg)](https://github.com/evanpurkhiser/resyctl/actions/workflows/main.yml)
+
 A Rust command-line client for Resy focused on automation-friendly, JSON-only output.
 It is designed for agents and scripts to drive booking workflows and other
 reservation automations.
