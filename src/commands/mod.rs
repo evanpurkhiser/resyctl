@@ -7,3 +7,4 @@ pub mod payment_methods;
 pub mod quote;
 pub mod reservations;
 pub mod search;
+pub mod venue;

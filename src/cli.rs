@@ -19,6 +19,8 @@ pub struct Cli {
 pub enum Command {
     /// Search venues by name text.
     Search(SearchArgs),
+    /// Look up a venue's address, contact info, and Resy URL.
+    Venue(VenueArgs),
     /// Check venue availability for a specific date or month.
     Availability(AvailabilityArgs),
     /// Quote a slot to inspect cancellation and payment policy details.
@@ -35,6 +37,12 @@ pub enum Command {
     Auth(AuthArgs),
     /// Show effective configuration and where values are loaded from.
     Config(ConfigArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct VenueArgs {
+    /// Resy venue id.
+    pub venue_id: i64,
 }
 
 #[derive(Args, Debug)]

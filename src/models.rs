@@ -334,3 +334,74 @@ pub struct CancelPayment {
 pub struct CancelTransaction {
     pub refund: Option<i64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueResponse {
+    pub id: Option<SearchHitId>,
+    pub name: Option<String>,
+    pub url_slug: Option<String>,
+    #[serde(rename = "type")]
+    pub kind: Option<String>,
+    pub location: Option<VenueLocation>,
+    pub contact: Option<VenueContact>,
+    pub links: Option<VenueLinks>,
+    pub metadata: Option<VenueMetadata>,
+    #[serde(default)]
+    pub content: Vec<VenueContent>,
+    #[serde(default)]
+    pub social: Vec<VenueSocial>,
+    pub price_range_id: Option<i64>,
+    pub rater: Option<Value>,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueLocation {
+    pub address_1: Option<String>,
+    pub address_2: Option<String>,
+    pub locality: Option<String>,
+    pub region: Option<String>,
+    pub postal_code: Option<String>,
+    pub country: Option<String>,
+    pub neighborhood: Option<String>,
+    pub cross_street_1: Option<String>,
+    pub cross_street_2: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    /// City slug used in resy.com URLs (e.g. "new-york-ny").
+    pub url_slug: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueContact {
+    pub phone_number: Option<String>,
+    pub url: Option<String>,
+    pub menu_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueLinks {
+    pub web: Option<String>,
+    pub deep: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueMetadata {
+    pub description: Option<String>,
+    #[serde(default)]
+    pub keywords: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueContent {
+    pub name: Option<String>,
+    pub title: Option<String>,
+    pub body: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VenueSocial {
+    pub name: Option<String>,
+    pub value: Option<String>,
+}

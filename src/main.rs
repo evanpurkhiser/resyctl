@@ -59,6 +59,7 @@ async fn run(cli: Cli) -> Result<serde_json::Value, Error> {
 
             match command {
                 Command::Search(args) => commands::search::run(&client, args).await,
+                Command::Venue(args) => commands::venue::run(&client, args).await,
                 Command::Availability(args) => commands::availability::run(&client, args).await,
                 Command::Quote(args) => commands::quote::run(&client, args).await,
                 Command::Book(args) => {

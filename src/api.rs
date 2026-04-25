@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use crate::error::{ApiError, Error};
 use crate::models::{
     AuthPasswordResponse, BookResponse, CancelResponse, DetailsResponse, FindResponse,
-    ReservationLookupResponse, SearchResponse, UserResponse,
+    ReservationLookupResponse, SearchResponse, UserResponse, VenueResponse,
 };
 use crate::state;
 use crate::types::{BookToken, ConfigId, ResyToken};
@@ -110,6 +110,14 @@ impl ResyClient {
     pub async fn user(&self) -> Result<UserResponse, Error> {
         let url = self.endpoint("/2/user");
         let response = self.execute(|c| c.get(&url)).await?;
+        read_json_response(response).await
+    }
+
+    pub async fn venue(&self, venue_id: i64) -> Result<VenueResponse, Error> {
+        let url = self.endpoint("/3/venue");
+        let id = venue_id.to_string();
+        let query = [("id", id.as_str())];
+        let response = self.execute(|c| c.get(&url).query(&query)).await?;
         read_json_response(response).await
     }
 
@@ -550,6 +558,62 @@ mod tests {
                 .and_then(|t| t.refund),
             Some(1)
         );
+    }
+
+    #[tokio::test]
+    async fn venue_deserializes_fixture_response() {
+        let server = MockServer::start();
+        let body = fixture("venue_response.json");
+
+        let mock = server.mock(|when, then| {
+            when.method(GET).path("/3/venue").query_param("id", "857");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(body);
+        });
+
+        let client = authed_client(&server);
+        let response = client.venue(857).await.unwrap();
+
+        mock.assert();
+        assert_eq!(response.name.as_deref(), Some("Maison Pickle"));
+        assert_eq!(response.url_slug.as_deref(), Some("maison-pickle"));
+        assert_eq!(response.kind.as_deref(), Some("American"));
+        assert_eq!(response.id.as_ref().and_then(|id| id.resy), Some(857));
+
+        let location = response.location.expect("location present");
+        assert_eq!(location.address_1.as_deref(), Some("2315 Broadway"));
+        assert_eq!(location.locality.as_deref(), Some("New York"));
+        assert_eq!(location.region.as_deref(), Some("NY"));
+        assert_eq!(location.postal_code.as_deref(), Some("10024"));
+        assert_eq!(location.neighborhood.as_deref(), Some("Upper West Side"));
+        assert!(location.latitude.is_some());
+        assert!(location.longitude.is_some());
+
+        let contact = response.contact.expect("contact present");
+        assert_eq!(contact.phone_number.as_deref(), Some("+19293567189"));
+        assert_eq!(contact.url.as_deref(), Some("http://www.maisonpickle.com/"));
+
+        let links = response.links.expect("links present");
+        assert_eq!(
+            links.web.as_deref(),
+            Some("https://resy.com/cities/new-york-ny/venues/maison-pickle")
+        );
+
+        let about = response
+            .content
+            .iter()
+            .find(|c| c.name.as_deref() == Some("about"))
+            .and_then(|c| c.body.as_deref())
+            .expect("about content");
+        assert!(about.contains("French Dip"));
+
+        let socials: std::collections::HashMap<_, _> = response
+            .social
+            .iter()
+            .filter_map(|s| Some((s.name.as_deref()?, s.value.as_deref()?)))
+            .collect();
+        assert_eq!(socials.get("instagram").copied(), Some("maisonpickle"));
     }
 
     #[tokio::test]

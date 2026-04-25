@@ -54,7 +54,21 @@ resyctl search "ishq" --limit 2 \
 # Use the first result for the rest of the flow.
 VENUE_ID=84214
 
-# 2) Check availability for party size 2 on a specific date.
+# 2) Look up venue details (address, phone, website, Resy/Maps URLs, about).
+resyctl venue "$VENUE_ID" \
+  | jq '.venue | {name, neighborhood, address, phone, website, resy_url, google_maps_url}'
+
+# {
+#   "name": "Ishq",
+#   "neighborhood": "Chelsea",
+#   "address": "240 5th Ave, New York, NY 10001",
+#   "phone": "+12125551234",
+#   "website": "https://ishq.com/",
+#   "resy_url": "https://resy.com/cities/new-york-ny/venues/ishq",
+#   "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Ishq+240+5th+Ave%2C+New+York%2C+NY+10001"
+# }
+
+# 3) Check availability for party size 2 on a specific date.
 resyctl availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
   | jq -r '.slots[:4][] | "\(.slot_id[0:12])[…] | \(.start) | \(.type // "?")"'
 
@@ -71,7 +85,7 @@ echo "${SLOT_ID:0:12}[…]"
 
 # eyJjb25maWdfa[…]
 
-# 3) Quote details for the slot (cancellation fee/cutoff/payment summary).
+# 4) Quote details for the slot (cancellation fee/cutoff/payment summary).
 resyctl quote "$SLOT_ID" \
   | jq '{
       cancellation_fee_amount: .quote.cancellation_fee_amount,
@@ -85,7 +99,7 @@ resyctl quote "$SLOT_ID" \
 #   "payment_type": "free"
 # }
 
-# 4) Book the slot.
+# 5) Book the slot.
 # If this slot has a cancellation fee, pass --allow-cancellation-fee.
 # Use --max-cancellation-fee to cap the fee amount.
 # "cancellation fee cutoff" is the timestamp after which canceling can incur a fee.
@@ -97,7 +111,7 @@ resyctl book "$SLOT_ID" --allow-cancellation-fee --yes \
 
 # reservation=867457046 token=Ys7435rTmPAu[…] cancellation_fee_amount=25 cancellation_fee_cutoff=2026-05-22T17:30:00Z
 
-# 5) List upcoming reservations.
+# 6) List upcoming reservations.
 resyctl reservations --upcoming \
   | jq -r '.reservations
     | sort_by(.day, .time_slot)
@@ -108,7 +122,7 @@ resyctl reservations --upcoming \
 # 867250480 | 2026-04-29 18:00:00 | MOKYO | 4hRnr95|mdVS[…]
 # 867248247 | 2026-05-01 18:30:00 | Antidote | A1xdLzgBrOOT[…]
 
-# 6) Cancel the older upcoming reservation.
+# 7) Cancel the older upcoming reservation.
 CANCEL_TOKEN=$(resyctl reservations --upcoming \
   | jq -r '.reservations | sort_by(.day, .time_slot) | .[0].resy_token')
 resyctl cancel "$CANCEL_TOKEN" --yes \
