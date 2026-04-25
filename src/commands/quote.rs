@@ -2,10 +2,10 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::QuoteArgs;
-use crate::error::AppError;
+use crate::error::Error;
 use crate::util::{QuoteSummary, to_json_value};
 
-pub async fn run(client: &ResyClient, args: QuoteArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, args: QuoteArgs) -> Result<Value, Error> {
     let slot = args.slot_id;
     let details = client.details_with_commit(&slot.config_id, 0).await?;
     let summary = QuoteSummary::try_from(&details)?;

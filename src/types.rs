@@ -4,7 +4,7 @@ use std::str::FromStr;
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 
-use crate::error::AppError;
+use crate::error::{Error, InputError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MonthArg {
@@ -28,15 +28,12 @@ impl fmt::Display for MonthArg {
 }
 
 impl FromStr for MonthArg {
-    type Err = AppError;
+    type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let first_day =
-            NaiveDate::parse_from_str(&format!("{value}-01"), "%Y-%m-%d").map_err(|_| {
-                AppError::new(
-                    5,
-                    format!("invalid month format: {value} (expected YYYY-MM)"),
-                )
+        let first_day = NaiveDate::parse_from_str(&format!("{value}-01"), "%Y-%m-%d")
+            .map_err(|_| InputError::InvalidMonth {
+                value: value.to_string(),
             })?;
         Ok(Self { first_day })
     }
@@ -52,16 +49,16 @@ impl fmt::Display for DateArg {
 }
 
 impl FromStr for DateArg {
-    type Err = AppError;
+    type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         NaiveDate::parse_from_str(value, "%Y-%m-%d")
             .map(Self)
             .map_err(|_| {
-                AppError::new(
-                    5,
-                    format!("invalid date format: {value} (expected YYYY-MM-DD)"),
-                )
+                InputError::InvalidDate {
+                    value: value.to_string(),
+                }
+                .into()
             })
     }
 }
@@ -76,12 +73,17 @@ impl fmt::Display for TimeArg {
 }
 
 impl FromStr for TimeArg {
-    type Err = AppError;
+    type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         NaiveTime::parse_from_str(value, "%H:%M")
             .map(Self)
-            .map_err(|_| AppError::new(5, format!("invalid time format: {value} (expected HH:MM)")))
+            .map_err(|_| {
+                InputError::InvalidTime {
+                    value: value.to_string(),
+                }
+                .into()
+            })
     }
 }
 
@@ -96,7 +98,7 @@ pub struct SlotId {
 }
 
 impl FromStr for SlotId {
-    type Err = AppError;
+    type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         crate::util::decode_slot_id(value)

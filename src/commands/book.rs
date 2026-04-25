@@ -3,14 +3,14 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::BookArgs;
-use crate::error::AppError;
+use crate::error::{ApiError, BookingPolicyError, Error, InputError};
 use crate::util::{QuoteSummary, to_json_value};
 
 pub async fn run(
     client: &ResyClient,
     args: BookArgs,
     cli_payment_method_id: Option<i64>,
-) -> Result<Value, AppError> {
+) -> Result<Value, Error> {
     let slot = args.slot_id;
     let quote_details = client.details_with_commit(&slot.config_id, 0).await?;
     let summary = QuoteSummary::try_from(&quote_details)?;
@@ -18,28 +18,17 @@ pub async fn run(
     let cancellation_fee_amount = summary.cancellation_fee_amount();
 
     if cancellation_fee_amount > 0.0 && !args.allow_cancellation_fee {
-        return Err(AppError::new(
-            3,
-            "booking blocked by policy: cancellation fee present; pass --allow-cancellation-fee to override",
-        ));
+        return Err(BookingPolicyError::CancellationFeePresent.into());
     }
 
     if let Some(max_fee) = args.max_cancellation_fee
         && cancellation_fee_amount > max_fee
     {
-        return Err(AppError::new(
-            3,
-            // Instead of constructing eerror strings here, can we use something like `thiserror`
-            // instead. we should have `CommandError` enum for each command module, which represents
-            // these errors and has the string formatting in the error enum
-            //
-            // This would remove the need for this error code thing
-            //
-            // It probaly can be Into<AppError> too or something
-            format!(
-                "booking blocked by policy: cancellation fee {cancellation_fee_amount} exceeds --max-cancellation-fee {max_fee}"
-            ),
-        ));
+        return Err(BookingPolicyError::CancellationFeeExceeded {
+            actual: cancellation_fee_amount,
+            max: max_fee,
+        }
+        .into());
     }
 
     if let Some(max_cutoff_hours) = args.max_cutoff_hours {
@@ -48,18 +37,14 @@ pub async fn run(
 
         match hours_until_cutoff {
             Some(hours) if hours < max_cutoff_hours => {
-                return Err(AppError::new(
-                    3,
-                    format!(
-                        "booking blocked by policy: cutoff {hours}h is less than --max-cutoff-hours {max_cutoff_hours}"
-                    ),
-                ));
+                return Err(BookingPolicyError::CutoffTooClose {
+                    hours,
+                    max: max_cutoff_hours,
+                }
+                .into());
             }
             None => {
-                return Err(AppError::new(
-                    3,
-                    "booking blocked by policy: cutoff unavailable for --max-cutoff-hours check",
-                ));
+                return Err(BookingPolicyError::CutoffUnavailable.into());
             }
             _ => {}
         }
@@ -71,7 +56,7 @@ pub async fn run(
         .book_token
         .as_ref()
         .and_then(|t| t.value.as_ref())
-        .ok_or_else(|| AppError::new(4, "details response missing book_token.value"))?;
+        .ok_or(Error::Api(ApiError::MissingBookToken))?;
 
     let payment_method_id = cli_payment_method_id.or_else(|| {
         quote_details
@@ -94,10 +79,7 @@ pub async fn run(
     }
 
     if !args.yes {
-        return Err(AppError::new(
-            5,
-            "booking requires --yes (or use --dry-run)",
-        ));
+        return Err(InputError::BookRequiresYes.into());
     }
 
     let booking_result = client

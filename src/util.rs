@@ -4,21 +4,21 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::error::AppError;
+use crate::error::{Error, InputError};
 use crate::models::{DetailsResponse, FindResponse};
 use crate::types::{SlotId, TimeArg};
 
-pub fn encode_slot_id(payload: &SlotId) -> Result<String, AppError> {
+pub fn encode_slot_id(payload: &SlotId) -> Result<String, Error> {
     let raw = serde_json::to_vec(payload)
-        .map_err(|e| AppError::new(4, format!("failed to encode slot_id: {e}")))?;
+        .map_err(|e| Error::Internal(format!("failed to encode slot_id: {e}")))?;
     Ok(URL_SAFE_NO_PAD.encode(raw))
 }
 
-pub fn decode_slot_id(slot_id: &str) -> Result<SlotId, AppError> {
+pub fn decode_slot_id(slot_id: &str) -> Result<SlotId, Error> {
     let raw = URL_SAFE_NO_PAD
         .decode(slot_id.as_bytes())
-        .map_err(|_| AppError::new(5, "invalid slot_id encoding"))?;
-    serde_json::from_slice::<SlotId>(&raw).map_err(|_| AppError::new(5, "invalid slot_id payload"))
+        .map_err(|_| InputError::InvalidSlotIdEncoding)?;
+    serde_json::from_slice::<SlotId>(&raw).map_err(|_| InputError::InvalidSlotIdPayload.into())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -64,7 +64,7 @@ pub fn extract_slots(
     venue_id: i64,
     day: NaiveDate,
     party_size: u8,
-) -> Result<Vec<AvailableSlot>, AppError> {
+) -> Result<Vec<AvailableSlot>, Error> {
     let mut out = Vec::new();
     let venues = find.results.as_ref().map(|v| &v.venues);
     for venue in venues.into_iter().flatten() {
@@ -146,7 +146,7 @@ impl QuoteSummary {
 }
 
 impl TryFrom<&DetailsResponse> for QuoteSummary {
-    type Error = AppError;
+    type Error = Error;
 
     fn try_from(details: &DetailsResponse) -> Result<Self, Self::Error> {
         let policy_text = details
@@ -221,7 +221,7 @@ impl TryFrom<&DetailsResponse> for QuoteSummary {
     }
 }
 
-pub fn to_json_value<T: Serialize>(value: T) -> Result<Value, AppError> {
+pub fn to_json_value<T: Serialize>(value: T) -> Result<Value, Error> {
     serde_json::to_value(value)
-        .map_err(|e| AppError::new(4, format!("failed to serialize JSON value: {e}")))
+        .map_err(|e| Error::Internal(format!("failed to serialize JSON value: {e}")))
 }

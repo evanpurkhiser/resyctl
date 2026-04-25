@@ -2,10 +2,10 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::PaymentMethodsArgs;
-use crate::error::AppError;
+use crate::error::Error;
 use crate::util::to_json_value;
 
-pub async fn run(client: &ResyClient, _args: PaymentMethodsArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, _args: PaymentMethodsArgs) -> Result<Value, Error> {
     let user = client.user().await?;
     let methods = user.payment_methods.unwrap_or_default();
 
@@ -19,7 +19,7 @@ pub async fn run(client: &ResyClient, _args: PaymentMethodsArgs) -> Result<Value
                 "raw": to_json_value(method)?,
             }))
         })
-        .collect::<Result<_, AppError>>()?;
+        .collect::<Result<_, Error>>()?;
 
     Ok(json!({
         "ok": true,

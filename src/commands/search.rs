@@ -2,10 +2,10 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::SearchArgs;
-use crate::error::AppError;
+use crate::error::Error;
 use crate::util::to_json_value;
 
-pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, Error> {
     let raw = client
         .search(&args.query, args.limit, args.lat, args.lng)
         .await?;
@@ -24,7 +24,7 @@ pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, AppErro
                 "raw": to_json_value(hit)?,
             }))
         })
-        .collect::<Result<_, AppError>>()?;
+        .collect::<Result<_, Error>>()?;
 
     Ok(json!({
         "ok": true,

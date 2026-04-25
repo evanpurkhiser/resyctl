@@ -2,10 +2,10 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::CancelArgs;
-use crate::error::AppError;
+use crate::error::{Error, InputError};
 use crate::util::to_json_value;
 
-pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, Error> {
     let mut effective_token = args.resy_token.clone();
     let lookup = client.reservation_by_token(&args.resy_token).await?;
     let reservation_snapshot = to_json_value(&lookup)?;
@@ -31,7 +31,7 @@ pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, AppErro
     }
 
     if !args.yes {
-        return Err(AppError::new(5, "cancel requires --yes (or use --dry-run)"));
+        return Err(InputError::CancelRequiresYes.into());
     }
 
     let result = client.cancel(&effective_token).await?;

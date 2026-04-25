@@ -2,26 +2,23 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::AvailabilityArgs;
-use crate::error::AppError;
+use crate::error::{Error, InputError};
 use crate::util::extract_slots;
 
-pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, Error> {
     match (&args.month, &args.date) {
         (Some(_), Some(_)) => {
-            return Err(AppError::new(5, "pass only one of --month or --date"));
+            return Err(InputError::AvailabilityCannotMixMonthAndDate.into());
         }
         (None, None) => {
-            return Err(AppError::new(5, "you must pass either --month or --date"));
+            return Err(InputError::AvailabilityRequiresMonthOrDate.into());
         }
         _ => {}
     }
 
     if let Some(month) = args.month {
         if !args.days {
-            return Err(AppError::new(
-                5,
-                "--month currently requires --days to return day-level availability",
-            ));
+            return Err(InputError::AvailabilityMonthRequiresDays.into());
         }
 
         let mut day_results = Vec::new();
@@ -57,7 +54,7 @@ pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, A
 
     let date = args
         .date
-        .ok_or_else(|| AppError::new(5, "--date is required for date availability mode"))?;
+        .ok_or(InputError::AvailabilityDateModeRequiresDate)?;
     let date_str = date.to_string();
 
     let raw = client

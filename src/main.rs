@@ -17,7 +17,7 @@ use serde_json::json;
 use api::ResyClient;
 use cli::{Cli, Command};
 use config::{resolve_client_key, resolve_payment_method_id};
-use error::AppError;
+use error::Error;
 use output::print_json;
 
 #[tokio::main]
@@ -26,28 +26,30 @@ async fn main() -> ExitCode {
     let result = run(cli).await;
 
     match result {
-        Ok(output) => {
-            if let Err(e) = print_json(&output) {
-                let err = json!({
-                    "ok": false,
-                    "code": 4,
-                    "error": format!("failed to print JSON: {}", e.message),
-                });
-                let _ = print_json(&err);
-                ExitCode::from(4)
-            } else {
-                ExitCode::SUCCESS
+        Ok(output) => match print_json(&output) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                emit_error(&e);
+                ExitCode::from(e.exit_code())
             }
-        }
+        },
         Err(e) => {
-            let err = json!({"ok": false, "code": e.code, "error": e.message});
-            let _ = print_json(&err);
-            ExitCode::from(e.code as u8)
+            emit_error(&e);
+            ExitCode::from(e.exit_code())
         }
     }
 }
 
-async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
+fn emit_error(e: &Error) {
+    let payload = json!({
+        "ok": false,
+        "kind": e.kind(),
+        "error": e.to_string(),
+    });
+    let _ = print_json(&payload);
+}
+
+async fn run(cli: Cli) -> Result<serde_json::Value, Error> {
     match cli.command {
         Command::Auth(args) => commands::auth::run(args).await,
         Command::Config(_) => commands::config_cmd::run().await,
@@ -68,9 +70,9 @@ async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
                     commands::payment_methods::run(&client, args).await
                 }
                 Command::Cancel(args) => commands::cancel::run(&client, args).await,
-                Command::Auth(_) | Command::Config(_) => {
-                    Err(AppError::new(5, "unreachable command state"))
-                }
+                Command::Auth(_) | Command::Config(_) => Err(Error::Internal(
+                    "unreachable command state".to_string(),
+                )),
             }
         }
     }

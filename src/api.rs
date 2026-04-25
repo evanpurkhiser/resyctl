@@ -6,7 +6,7 @@ use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use crate::error::AppError;
+use crate::error::{ApiError, Error};
 use crate::models::{
     AuthPasswordResponse, BookResponse, CancelResponse, DetailsResponse, FindResponse,
     ReservationLookupResponse, SearchResponse, UserResponse,
@@ -35,17 +35,17 @@ impl ResyClient {
         client_key: &str,
         auth_token: &str,
         base_url: &str,
-    ) -> Result<Self, AppError> {
+    ) -> Result<Self, Error> {
         Self::build(client_key, base_url, Some(auth_token), None)
     }
 
-    pub fn unauthenticated(client_key: &str) -> Result<Self, AppError> {
+    pub fn unauthenticated(client_key: &str) -> Result<Self, Error> {
         Self::build(client_key, "https://api.resy.com", None, None)
     }
 
     /// Build a client wired to persisted state: uses the saved auth token and
     /// automatically re-authenticates on a 401 if email/password are stored.
-    pub fn from_state(client_key: &str) -> Result<Self, AppError> {
+    pub fn from_state(client_key: &str) -> Result<Self, Error> {
         let s = state::load()?;
         let credentials = match (s.email.as_deref(), s.password.as_deref()) {
             (Some(email), Some(password)) if !email.is_empty() && !password.is_empty() => {
@@ -58,10 +58,7 @@ impl ResyClient {
         };
 
         if s.auth_token.is_none() && credentials.is_none() {
-            return Err(AppError::new(
-                5,
-                "missing auth token; run `resyctl auth login` first",
-            ));
+            return Err(Error::MissingAuthToken);
         }
 
         Self::build(
@@ -77,11 +74,11 @@ impl ResyClient {
         base_url: &str,
         auth_token: Option<&str>,
         credentials: Option<Credentials>,
-    ) -> Result<Self, AppError> {
+    ) -> Result<Self, Error> {
         let http = reqwest::Client::builder()
             .user_agent("resyctl/0.1.0")
             .build()
-            .map_err(|e| AppError::new(4, format!("failed to build HTTP client: {e}")))?;
+            .map_err(|e| Error::Api(ApiError::BuildClient(e)))?;
 
         Ok(Self {
             http,
@@ -96,7 +93,7 @@ impl ResyClient {
         &self,
         email: &str,
         password: &str,
-    ) -> Result<AuthPasswordResponse, AppError> {
+    ) -> Result<AuthPasswordResponse, Error> {
         let response = self
             .http
             .post(self.endpoint("/3/auth/password"))
@@ -105,12 +102,12 @@ impl ResyClient {
             .form(&[("email", email), ("password", password)])
             .send()
             .await
-            .map_err(|e| AppError::new(4, format!("auth request failed: {e}")))?;
+            .map_err(|e| Error::Api(ApiError::AuthRequest(e)))?;
 
         read_json_response(response).await
     }
 
-    pub async fn user(&self) -> Result<UserResponse, AppError> {
+    pub async fn user(&self) -> Result<UserResponse, Error> {
         let url = self.endpoint("/2/user");
         let response = self.execute(|c| c.get(&url)).await?;
         read_json_response(response).await
@@ -122,7 +119,7 @@ impl ResyClient {
         limit: u32,
         lat: f64,
         lng: f64,
-    ) -> Result<SearchResponse, AppError> {
+    ) -> Result<SearchResponse, Error> {
         let url = self.endpoint("/3/venuesearch/search");
         let body = json!({
             "query": query,
@@ -147,7 +144,7 @@ impl ResyClient {
         party_size: u8,
         lat: f64,
         lng: f64,
-    ) -> Result<FindResponse, AppError> {
+    ) -> Result<FindResponse, Error> {
         let url = self.endpoint("/4/find");
         let query = [
             ("venue_id", venue_id.to_string()),
@@ -164,7 +161,7 @@ impl ResyClient {
         &self,
         config_id: &ConfigId,
         commit: i32,
-    ) -> Result<DetailsResponse, AppError> {
+    ) -> Result<DetailsResponse, Error> {
         let url = self.endpoint("/3/details");
         let body = json!({
             "config_id": config_id.as_str(),
@@ -186,7 +183,7 @@ impl ResyClient {
         resy_token: Option<&ResyToken>,
         limit: Option<u32>,
         offset: Option<u32>,
-    ) -> Result<ReservationLookupResponse, AppError> {
+    ) -> Result<ReservationLookupResponse, Error> {
         let mut query: Vec<(&str, String)> = Vec::new();
         if let Some(token) = resy_token {
             query.push(("resy_token", token.as_str().to_string()));
@@ -206,11 +203,11 @@ impl ResyClient {
     pub async fn reservation_by_token(
         &self,
         resy_token: &ResyToken,
-    ) -> Result<ReservationLookupResponse, AppError> {
+    ) -> Result<ReservationLookupResponse, Error> {
         self.reservations(Some(resy_token), None, None).await
     }
 
-    pub async fn cancel(&self, resy_token: &ResyToken) -> Result<CancelResponse, AppError> {
+    pub async fn cancel(&self, resy_token: &ResyToken) -> Result<CancelResponse, Error> {
         let url = self.endpoint("/3/cancel");
         let form = [("resy_token", resy_token.as_str())];
         let response = self
@@ -229,7 +226,7 @@ impl ResyClient {
         payment_method_id: Option<i64>,
         replace: bool,
         venue_marketing_opt_in: bool,
-    ) -> Result<BookResponse, AppError> {
+    ) -> Result<BookResponse, Error> {
         let mut form = vec![("book_token", book_token.as_str().to_string())];
         if let Some(id) = payment_method_id {
             let payment = json!({ "id": id }).to_string();
@@ -254,7 +251,7 @@ impl ResyClient {
 
     /// Run a request, attaching auth headers each attempt. On 401 with stored
     /// credentials, re-authenticate, persist the new token, and retry once.
-    async fn execute<F>(&self, build: F) -> Result<Response, AppError>
+    async fn execute<F>(&self, build: F) -> Result<Response, Error>
     where
         F: Fn(&reqwest::Client) -> RequestBuilder,
     {
@@ -268,7 +265,7 @@ impl ResyClient {
         self.send_with_auth(&build).await
     }
 
-    async fn send_with_auth<F>(&self, build: &F) -> Result<Response, AppError>
+    async fn send_with_auth<F>(&self, build: &F) -> Result<Response, Error>
     where
         F: Fn(&reqwest::Client) -> RequestBuilder,
     {
@@ -281,10 +278,10 @@ impl ResyClient {
         }
         req.send()
             .await
-            .map_err(|e| AppError::new(4, format!("request failed: {e}")))
+            .map_err(|e| Error::Api(ApiError::Request(e)))
     }
 
-    async fn try_refresh_auth(&self) -> Result<bool, AppError> {
+    async fn try_refresh_auth(&self) -> Result<bool, Error> {
         let Some(creds) = self.credentials.clone() else {
             return Ok(false);
         };
@@ -293,7 +290,7 @@ impl ResyClient {
         let token = auth
             .token
             .clone()
-            .ok_or_else(|| AppError::new(4, "re-auth response missing token"))?;
+            .ok_or(Error::Api(ApiError::ReauthResponseMissingToken))?;
 
         *self.auth_token.lock().await = Some(token.clone());
 
@@ -322,29 +319,24 @@ fn normalize_base_url(base_url: &str) -> String {
 
 async fn read_json_response<T: DeserializeOwned>(
     response: reqwest::Response,
-) -> Result<T, AppError> {
+) -> Result<T, Error> {
     let status = response.status();
     let body = response
         .text()
         .await
-        .map_err(|e| AppError::new(4, format!("failed reading response body: {e}")))?;
+        .map_err(|e| Error::Api(ApiError::ReadBody(e)))?;
 
-    let parsed = serde_json::from_str::<Value>(&body).map_err(|e| {
-        AppError::new(
-            4,
-            format!("failed to deserialize API response body as JSON: {e}"),
-        )
-    })?;
+    let parsed = serde_json::from_str::<Value>(&body)
+        .map_err(|e| Error::Api(ApiError::ParseBodyJson(e)))?;
 
     if !status.is_success() {
-        return Err(AppError::new(
-            4,
-            format!("api error {}: {}", status.as_u16(), parsed),
-        ));
+        return Err(Error::Api(ApiError::ErrorStatusCode {
+            status: status.as_u16(),
+            body: parsed,
+        }));
     }
 
-    serde_json::from_value::<T>(parsed)
-        .map_err(|e| AppError::new(4, format!("failed to deserialize API response: {e}")))
+    serde_json::from_value::<T>(parsed).map_err(|e| Error::Api(ApiError::DeserializeResponse(e)))
 }
 
 #[cfg(test)]
@@ -576,7 +568,7 @@ mod tests {
         let err = client.reservations(None, None, None).await.unwrap_err();
 
         mock.assert();
-        assert_eq!(err.code, 4);
-        assert!(err.message.contains("api error 404"));
+        assert_eq!(err.kind(), "error_status_code");
+        assert!(err.to_string().contains("api error 404"));
     }
 }

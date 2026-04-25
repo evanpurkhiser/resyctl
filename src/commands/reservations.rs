@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::ReservationsArgs;
-use crate::error::AppError;
+use crate::error::Error;
 use crate::models::{PaymentMethod, ReservationItem, ReservationLookupResponse};
 use crate::types::ResyToken;
 use crate::util::to_json_value;
@@ -61,7 +61,7 @@ struct NormalizedInvoice {
 }
 
 impl NormalizedReservation {
-    fn from_item(item: &ReservationItem, venues: Option<&Value>) -> Result<Self, AppError> {
+    fn from_item(item: &ReservationItem, venues: Option<&Value>) -> Result<Self, Error> {
         let venue_id = item.venue.as_ref().and_then(|v| v.id).or(item.venue_id);
         let venue_name = item
             .venue
@@ -176,7 +176,7 @@ fn is_upcoming_reservation(item: &ReservationItem, today: NaiveDate) -> bool {
     is_today_or_future && not_finished && not_no_show
 }
 
-pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, AppError> {
+pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, Error> {
     let raw = client
         .reservations(args.resy_token.as_ref(), args.limit, args.offset)
         .await?;
@@ -189,7 +189,7 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
         .iter()
         .filter(|item| !apply_upcoming_filter || is_upcoming_reservation(item, today))
         .map(|item| NormalizedReservation::from_item(item, raw.venues.as_ref()))
-        .collect::<Result<_, AppError>>()?;
+        .collect::<Result<_, Error>>()?;
 
     normalized.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
 

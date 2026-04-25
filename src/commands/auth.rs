@@ -5,18 +5,18 @@ use serde_json::{Value, json};
 use crate::api::ResyClient;
 use crate::cli::{AuthArgs, AuthCommand, LoginArgs};
 use crate::config::resolve_client_key;
-use crate::error::AppError;
+use crate::error::{ApiError, Error, InputError, IoError};
 use crate::state;
 use crate::util::to_json_value;
 
-pub async fn run(args: AuthArgs) -> Result<Value, AppError> {
+pub async fn run(args: AuthArgs) -> Result<Value, Error> {
     match args.command {
         AuthCommand::Status => status().await,
         AuthCommand::Login(login_args) => login(login_args).await,
     }
 }
 
-async fn status() -> Result<Value, AppError> {
+async fn status() -> Result<Value, Error> {
     let client_key = resolve_client_key();
     let client = ResyClient::from_state(&client_key)?;
     let user = client.user().await?;
@@ -43,7 +43,7 @@ async fn status() -> Result<Value, AppError> {
     }))
 }
 
-async fn login(args: LoginArgs) -> Result<Value, AppError> {
+async fn login(args: LoginArgs) -> Result<Value, Error> {
     let client_key = resolve_client_key();
     let email = resolve_email(&args)?;
     let password = resolve_password(&args)?;
@@ -64,7 +64,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
     }))
 }
 
-fn resolve_email(args: &LoginArgs) -> Result<String, AppError> {
+fn resolve_email(args: &LoginArgs) -> Result<String, Error> {
     if let Some(email) = &args.email
         && !email.trim().is_empty()
     {
@@ -73,37 +73,36 @@ fn resolve_email(args: &LoginArgs) -> Result<String, AppError> {
     prompt_line("Email: ")
 }
 
-fn resolve_password(args: &LoginArgs) -> Result<String, AppError> {
+fn resolve_password(args: &LoginArgs) -> Result<String, Error> {
     if let Some(password) = &args.password
         && !password.is_empty()
     {
         return Ok(password.clone());
     }
 
-    let password = rpassword::prompt_password("Password: ")
-        .map_err(|e| AppError::new(5, format!("failed reading password: {e}")))?;
+    let password = rpassword::prompt_password("Password: ").map_err(IoError::PasswordPrompt)?;
     if password.is_empty() {
-        return Err(AppError::new(5, "password cannot be empty"));
+        return Err(InputError::EmptyPassword.into());
     }
     Ok(password)
 }
 
-fn prompt_line(prompt: &str) -> Result<String, AppError> {
+fn prompt_line(prompt: &str) -> Result<String, Error> {
     let mut stdout = io::stdout();
     stdout
         .write_all(prompt.as_bytes())
         .and_then(|_| stdout.flush())
-        .map_err(|e| AppError::new(5, format!("failed writing prompt: {e}")))?;
+        .map_err(IoError::PromptWrite)?;
 
     let mut buf = String::new();
     io::stdin()
         .lock()
         .read_line(&mut buf)
-        .map_err(|e| AppError::new(5, format!("failed reading input: {e}")))?;
+        .map_err(IoError::PromptRead)?;
 
     let trimmed = buf.trim().to_string();
     if trimmed.is_empty() {
-        return Err(AppError::new(5, "input cannot be empty"));
+        return Err(InputError::EmptyPromptInput.into());
     }
     Ok(trimmed)
 }
@@ -112,11 +111,11 @@ fn write_state(
     email: &str,
     password: &str,
     auth: &crate::models::AuthPasswordResponse,
-) -> Result<(), AppError> {
+) -> Result<(), Error> {
     let token = auth
         .token
         .as_deref()
-        .ok_or_else(|| AppError::new(4, "auth response missing token"))?;
+        .ok_or(ApiError::AuthResponseMissingToken)?;
 
     let mut current = state::load().unwrap_or_default();
     current.email = Some(email.to_string());
