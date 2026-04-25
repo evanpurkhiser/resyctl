@@ -6,6 +6,24 @@ reservation automations.
 
 ## Install
 
+Via Homebrew:
+
+```bash
+brew install evanpurkhiser/personal/resyctl
+```
+
+Via Arch Linux AUR:
+
+```bash
+yay -S resyctl
+```
+
+From crates.io:
+
+```bash
+cargo install resyctl
+```
+
 From source:
 
 ```bash
