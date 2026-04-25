@@ -4,7 +4,7 @@ A Rust command-line client for Resy focused on automation-friendly, JSON-only ou
 It is designed for agents and scripts to drive booking workflows and other
 reservation automations.
 
-> [!INFO]
+> [!NOTE]
 > See [my `resy-booking` skill](https://github.com/evanpurkhiser/dots-personal/blob/main/machines/server/agents/skills/resy-booking/SKILL.md)
 > for an example of how to drive `resyctl` from an agent.
 
