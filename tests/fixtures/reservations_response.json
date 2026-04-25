@@ -1,0 +1,47 @@
+{
+  "reservations": [
+    {
+      "reservation_id": 867250480,
+      "resy_token": "tok-1",
+      "venue_id": 38941,
+      "day": "2026-04-29",
+      "time_slot": "18:00:00",
+      "num_seats": 2,
+      "status": {"finished": 0, "no_show": 0},
+      "cancellation": {
+        "allowed": true,
+        "date_refund_cut_off": "2026-04-28T22:00:00Z",
+        "fee": {
+          "amount": 10.0,
+          "date_cut_off": "2026-04-28T22:00:00Z",
+          "display": {"amount": "$10.00"}
+        }
+      },
+      "cancellation_policy": ["$10 fee applies after cutoff"],
+      "payment_method": {"id": 31340008, "card_type": "visa", "last_4": "8360"},
+      "payment": {
+        "invoice": {
+          "subtotal": 0,
+          "tax": 0,
+          "service_fee": 0,
+          "resy_fee": 0,
+          "total": 0
+        }
+      }
+    },
+    {
+      "reservation_id": 867248247,
+      "resy_token": "tok-2",
+      "venue_id": 63994,
+      "day": "2026-05-01",
+      "time_slot": "18:30:00",
+      "num_seats": 2,
+      "status": {"finished": 0, "no_show": 0}
+    }
+  ],
+  "venues": {
+    "38941": {"id": 38941, "name": "MOKYO"},
+    "63994": {"id": 63994, "name": "Antidote"}
+  },
+  "metadata": {"total": 2, "offset": 0, "limit": 10}
+}

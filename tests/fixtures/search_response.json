@@ -1,0 +1,22 @@
+{
+  "search": {
+    "hits": [
+      {
+        "id": {"resy": 84214},
+        "name": "Ishq",
+        "locality": "New York",
+        "neighborhood": "East Village",
+        "cuisine": ["Indian"],
+        "rating": {"average": 4.6}
+      },
+      {
+        "id": {"resy": 66703},
+        "name": "Ishi Omakase & Premium Sake",
+        "locality": "New York",
+        "neighborhood": "Park Slope",
+        "cuisine": ["Japanese"],
+        "rating": {"average": 4.4}
+      }
+    ]
+  }
+}

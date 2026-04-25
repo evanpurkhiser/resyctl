@@ -3,6 +3,8 @@ secrets/
 mitm/
 prior art/
 fixtures/
+!tests/fixtures/
+!tests/fixtures/*.json
 fixtures/auth_password.json
 fixtures/api/user.json
 

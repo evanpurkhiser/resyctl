@@ -1,0 +1,21 @@
+{
+  "book_token": {
+    "value": "book-token-xyz",
+    "date_expires": "2026-04-26T00:09:46Z"
+  },
+  "cancellation": {
+    "fee": {
+      "amount": 25.0,
+      "date_cut_off": "2026-04-25T18:30:00Z",
+      "display": {"amount": "$25.00"}
+    }
+  },
+  "payment": {
+    "config": {"type": "free"}
+  },
+  "user": {
+    "payment_methods": [
+      {"id": 31340008, "card_type": "visa", "last_4": "8360"}
+    ]
+  }
+}

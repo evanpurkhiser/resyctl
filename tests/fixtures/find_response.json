@@ -1,0 +1,50 @@
+{
+  "results": {
+    "venues": [
+      {
+        "slots": [
+          {
+            "config": {
+              "token": "rgs://resy/84214/4169537/2/2026-04-26/2026-04-26/18:30:00/2/Bar Seat",
+              "type": "Bar Seat"
+            },
+            "date": {
+              "start": "2026-04-26 18:30:00",
+              "end": "2026-04-26 20:00:00"
+            },
+            "size": {"min": 2, "max": 2},
+            "payment": {
+              "is_paid": true,
+              "cancellation_fee": 25.0,
+              "deposit_fee": null,
+              "secs_cancel_cut_off": 86400,
+              "time_cancel_cut_off": "2026-04-25T18:30:00Z",
+              "secs_change_cut_off": 86400,
+              "time_change_cut_off": "2026-04-25T18:30:00Z"
+            }
+          },
+          {
+            "config": {
+              "token": "rgs://resy/84214/4169537/2/2026-04-26/2026-04-26/20:00:00/2/Table",
+              "type": "Table"
+            },
+            "date": {
+              "start": "2026-04-26 20:00:00",
+              "end": "2026-04-26 21:30:00"
+            },
+            "size": {"min": 2, "max": 4},
+            "payment": {
+              "is_paid": false,
+              "cancellation_fee": 0.0,
+              "deposit_fee": null,
+              "secs_cancel_cut_off": null,
+              "time_cancel_cut_off": null,
+              "secs_change_cut_off": null,
+              "time_change_cut_off": null
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

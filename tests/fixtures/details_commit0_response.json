@@ -1,0 +1,38 @@
+{
+  "cancellation": {
+    "display": {
+      "policy": [
+        "A cancellation fee will not be charged if you cancel before Fri, Apr. 25 at 2:30pm.",
+        "If you cancel after that, a fee of $25.00 + tax per guest applies."
+      ]
+    },
+    "fee": {
+      "amount": 25.0,
+      "tax": null,
+      "date_cut_off": "2026-04-25T18:30:00Z",
+      "display": {"amount": "$25.00"}
+    },
+    "refund": {
+      "date_cut_off": "2026-04-25T18:30:00Z"
+    }
+  },
+  "change": {
+    "date_cut_off": "2026-04-25T18:30:00Z"
+  },
+  "payment": {
+    "config": {"type": "free"},
+    "amounts": {
+      "reservation_charge": 0,
+      "subtotal": 0,
+      "resy_fee": 0,
+      "service_fee": 0,
+      "tax": 0,
+      "total": 0
+    }
+  },
+  "user": {
+    "payment_methods": [
+      {"id": 31340008, "card_type": "visa", "last_4": "8360"}
+    ]
+  }
+}
