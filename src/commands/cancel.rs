@@ -12,10 +12,10 @@ pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, AppErro
     if let Some(next_token) = lookup
         .reservations
         .first()
-        .and_then(|r| r.resy_token.as_deref())
-        .filter(|s| !s.is_empty())
+        .and_then(|r| r.resy_token.as_ref())
+        .filter(|t| !t.as_str().is_empty())
     {
-        effective_token = next_token.to_string();
+        effective_token = next_token.clone();
     }
 
     if args.dry_run {
@@ -23,8 +23,8 @@ pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, AppErro
             "ok": true,
             "dry_run": true,
             "would_cancel": true,
-            "input_resy_token_present": !args.resy_token.is_empty(),
-            "effective_resy_token_present": !effective_token.is_empty(),
+            "input_resy_token_present": !args.resy_token.as_str().is_empty(),
+            "effective_resy_token_present": !effective_token.as_str().is_empty(),
             "refreshed": true,
             "reservation_snapshot": reservation_snapshot,
         }));
@@ -41,8 +41,8 @@ pub async fn run(client: &ResyClient, args: CancelArgs) -> Result<Value, AppErro
         "ok": true,
         "canceled": true,
         "refreshed": true,
-        "input_resy_token_present": !args.resy_token.is_empty(),
-        "effective_resy_token_present": !effective_token.is_empty(),
+        "input_resy_token_present": !args.resy_token.as_str().is_empty(),
+        "effective_resy_token_present": !effective_token.as_str().is_empty(),
         "result": result_raw,
         "reservation_snapshot": reservation_snapshot,
     }))

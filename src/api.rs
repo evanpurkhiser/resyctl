@@ -12,6 +12,7 @@ use crate::models::{
     ReservationLookupResponse, SearchResponse, UserResponse,
 };
 use crate::state;
+use crate::types::{BookToken, ConfigId, ResyToken};
 
 #[derive(Clone, Debug)]
 struct Credentials {
@@ -161,12 +162,12 @@ impl ResyClient {
 
     pub async fn details_with_commit(
         &self,
-        config_id: &str,
+        config_id: &ConfigId,
         commit: i32,
     ) -> Result<DetailsResponse, AppError> {
         let url = self.endpoint("/3/details");
         let body = json!({
-            "config_id": config_id,
+            "config_id": config_id.as_str(),
             "commit": commit,
             "struct_items": [],
         });
@@ -182,13 +183,13 @@ impl ResyClient {
 
     pub async fn reservations(
         &self,
-        resy_token: Option<&str>,
+        resy_token: Option<&ResyToken>,
         limit: Option<u32>,
         offset: Option<u32>,
     ) -> Result<ReservationLookupResponse, AppError> {
         let mut query: Vec<(&str, String)> = Vec::new();
         if let Some(token) = resy_token {
-            query.push(("resy_token", token.to_string()));
+            query.push(("resy_token", token.as_str().to_string()));
         }
         if let Some(limit) = limit {
             query.push(("limit", limit.to_string()));
@@ -204,14 +205,14 @@ impl ResyClient {
 
     pub async fn reservation_by_token(
         &self,
-        resy_token: &str,
+        resy_token: &ResyToken,
     ) -> Result<ReservationLookupResponse, AppError> {
         self.reservations(Some(resy_token), None, None).await
     }
 
-    pub async fn cancel(&self, resy_token: &str) -> Result<CancelResponse, AppError> {
+    pub async fn cancel(&self, resy_token: &ResyToken) -> Result<CancelResponse, AppError> {
         let url = self.endpoint("/3/cancel");
-        let form = [("resy_token", resy_token)];
+        let form = [("resy_token", resy_token.as_str())];
         let response = self
             .execute(|c| {
                 c.post(&url)
@@ -224,12 +225,12 @@ impl ResyClient {
 
     pub async fn book(
         &self,
-        book_token: &str,
+        book_token: &BookToken,
         payment_method_id: Option<i64>,
         replace: bool,
         venue_marketing_opt_in: bool,
     ) -> Result<BookResponse, AppError> {
-        let mut form = vec![("book_token", book_token.to_string())];
+        let mut form = vec![("book_token", book_token.as_str().to_string())];
         if let Some(id) = payment_method_id {
             let payment = json!({ "id": id }).to_string();
             form.push(("struct_payment_method", payment));
@@ -436,7 +437,7 @@ mod tests {
 
         let client = authed_client(&server);
         let response = client
-            .details_with_commit("rgs://resy/config-token", 0)
+            .details_with_commit(&ConfigId("rgs://resy/config-token".to_string()), 0)
             .await
             .unwrap();
 
@@ -466,14 +467,14 @@ mod tests {
 
         let client = authed_client(&server);
         let response = client
-            .details_with_commit("rgs://resy/config-token", 1)
+            .details_with_commit(&ConfigId("rgs://resy/config-token".to_string()), 1)
             .await
             .unwrap();
 
         mock.assert();
         assert_eq!(
             response.book_token.and_then(|t| t.value),
-            Some("book-token-xyz".to_string())
+            Some(BookToken("book-token-xyz".to_string()))
         );
     }
 
@@ -491,13 +492,21 @@ mod tests {
 
         let client = authed_client(&server);
         let response = client
-            .book("book-token-xyz", Some(31340008), false, false)
+            .book(
+                &BookToken("book-token-xyz".to_string()),
+                Some(31340008),
+                false,
+                false,
+            )
             .await
             .unwrap();
 
         mock.assert();
         assert_eq!(response.reservation_id, Some(867413540));
-        assert_eq!(response.resy_token, Some("resy-token-abc".to_string()));
+        assert_eq!(
+            response.resy_token,
+            Some(ResyToken("resy-token-abc".to_string()))
+        );
     }
 
     #[tokio::test]
@@ -536,7 +545,10 @@ mod tests {
         });
 
         let client = authed_client(&server);
-        let response = client.cancel("resy-token-abc").await.unwrap();
+        let response = client
+            .cancel(&ResyToken("resy-token-abc".to_string()))
+            .await
+            .unwrap();
 
         mock.assert();
         assert_eq!(

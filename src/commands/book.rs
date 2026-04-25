@@ -61,7 +61,7 @@ pub async fn run(
     let book_token = commit_details
         .book_token
         .as_ref()
-        .and_then(|t| t.value.as_deref())
+        .and_then(|t| t.value.as_ref())
         .ok_or_else(|| AppError::new(4, "details response missing book_token.value"))?;
 
     let payment_method_id = cli_payment_method_id.or_else(|| {

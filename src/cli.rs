@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 
-use crate::types::{DateArg, MonthArg, TimeArg};
+use crate::types::{DateArg, MonthArg, ResyToken, TimeArg};
 
 pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
@@ -118,7 +118,7 @@ pub struct BookArgs {
 #[derive(Args, Debug)]
 pub struct ReservationsArgs {
     /// Optional reservation token for targeted lookup.
-    pub resy_token: Option<String>,
+    pub resy_token: Option<ResyToken>,
     /// Return only upcoming reservations (default behavior).
     #[arg(long, default_value_t = true)]
     pub upcoming: bool,
@@ -136,7 +136,7 @@ pub struct ReservationsArgs {
 #[derive(Args, Debug)]
 pub struct CancelArgs {
     /// Reservation token to cancel.
-    pub resy_token: String,
+    pub resy_token: ResyToken,
     /// Confirm live cancellation (required unless using dry-run).
     #[arg(long)]
     pub yes: bool,

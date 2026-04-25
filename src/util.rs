@@ -69,15 +69,15 @@ pub fn extract_slots(
     let venues = find.results.as_ref().map(|v| &v.venues);
     for venue in venues.into_iter().flatten() {
         for slot in &venue.slots {
-            let config_id = slot
+            let Some(config_id) = slot
                 .config
                 .as_ref()
                 .and_then(|c| c.token.as_ref())
+                .filter(|c| !c.as_str().is_empty())
                 .cloned()
-                .unwrap_or_default();
-            if config_id.is_empty() {
+            else {
                 continue;
-            }
+            };
 
             let slot_type = slot.config.as_ref().and_then(|c| c.kind.clone());
             let start = slot.date.as_ref().and_then(|d| d.start);

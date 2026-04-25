@@ -6,12 +6,13 @@ use crate::api::ResyClient;
 use crate::cli::ReservationsArgs;
 use crate::error::AppError;
 use crate::models::{PaymentMethod, ReservationItem, ReservationLookupResponse};
+use crate::types::ResyToken;
 use crate::util::to_json_value;
 
 #[derive(Debug, Serialize)]
 struct NormalizedReservation {
     reservation_id: Option<i64>,
-    resy_token: Option<String>,
+    resy_token: Option<ResyToken>,
     day: Option<NaiveDate>,
     time_slot: Option<NaiveTime>,
     num_seats: Option<i64>,
@@ -177,7 +178,7 @@ fn is_upcoming_reservation(item: &ReservationItem, today: NaiveDate) -> bool {
 
 pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, AppError> {
     let raw = client
-        .reservations(args.resy_token.as_deref(), args.limit, args.offset)
+        .reservations(args.resy_token.as_ref(), args.limit, args.offset)
         .await?;
 
     let today = Utc::now().date_naive();
@@ -203,7 +204,7 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
     Ok(json!({
         "ok": true,
         "input": {
-            "resy_token_present": args.resy_token.as_ref().map(|s| !s.is_empty()).unwrap_or(false),
+            "resy_token_present": args.resy_token.as_ref().map(|s| !s.as_str().is_empty()).unwrap_or(false),
             "upcoming": apply_upcoming_filter,
             "all": args.all,
             "limit": args.limit,

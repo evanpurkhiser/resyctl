@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
 
+use crate::types::{BookToken, ConfigId, ResyToken};
+
 /// Resy returns slot start/end as `"YYYY-MM-DD HH:MM:SS"` (space-delimited,
 /// no timezone), which doesn't match chrono's default NaiveDateTime serde
 /// format. This module decodes/encodes that wire format.
@@ -114,7 +116,7 @@ pub struct FindSlot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlotConfig {
-    pub token: Option<String>,
+    pub token: Option<ConfigId>,
     #[serde(rename = "type")]
     pub kind: Option<String>,
 }
@@ -146,7 +148,7 @@ pub struct SlotPayment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetailsResponse {
-    pub book_token: Option<BookToken>,
+    pub book_token: Option<BookTokenInfo>,
     pub cancellation: Option<Cancellation>,
     pub change: Option<ChangePolicy>,
     pub payment: Option<Payment>,
@@ -157,8 +159,8 @@ pub struct DetailsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BookToken {
-    pub value: Option<String>,
+pub struct BookTokenInfo {
+    pub value: Option<BookToken>,
     pub date_expires: Option<DateTime<Utc>>,
 }
 
@@ -234,7 +236,7 @@ pub struct PaymentMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookResponse {
     pub reservation_id: Option<i64>,
-    pub resy_token: Option<String>,
+    pub resy_token: Option<ResyToken>,
     pub specs: Option<Value>,
     pub venue: Option<Value>,
 }
@@ -250,7 +252,7 @@ pub struct ReservationLookupResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReservationItem {
     pub reservation_id: Option<i64>,
-    pub resy_token: Option<String>,
+    pub resy_token: Option<ResyToken>,
     pub venue_id: Option<i64>,
     pub day: Option<NaiveDate>,
     pub time_slot: Option<NaiveTime>,
