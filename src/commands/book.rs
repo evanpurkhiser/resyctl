@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use crate::api::ResyClient;
 use crate::cli::BookArgs;
 use crate::error::AppError;
-use crate::util::{decode_slot_id, quote_summary, to_json_value};
+use crate::util::{QuoteSummary, decode_slot_id, to_json_value};
 
 pub async fn run(
     client: &ResyClient,
@@ -13,7 +13,7 @@ pub async fn run(
 ) -> Result<Value, AppError> {
     let slot = decode_slot_id(&args.slot_id)?;
     let quote_details = client.details_with_commit(&slot.config_id, 0).await?;
-    let summary = quote_summary(&quote_details)?;
+    let summary = QuoteSummary::try_from(&quote_details)?;
 
     let fee_amount = summary.fee_amount();
 

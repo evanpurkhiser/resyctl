@@ -145,77 +145,80 @@ impl QuoteSummary {
     }
 }
 
-pub fn quote_summary(details: &DetailsResponse) -> Result<QuoteSummary, AppError> {
-    let policy_text = details
-        .cancellation
-        .as_ref()
-        .and_then(|c| c.display.as_ref())
-        .and_then(|d| d.policy.as_ref())
-        .map(|p| p.join("\n"))
-        .filter(|s| !s.is_empty());
+impl TryFrom<&DetailsResponse> for QuoteSummary {
+    type Error = AppError;
 
-    let payment_methods = to_json_value(
-        details
-            .user
+    fn try_from(details: &DetailsResponse) -> Result<Self, Self::Error> {
+        let policy_text = details
+            .cancellation
             .as_ref()
-            .and_then(|u| u.payment_methods.as_ref())
-            .cloned()
-            .unwrap_or_default(),
-    )?;
+            .and_then(|c| c.display.as_ref())
+            .and_then(|d| d.policy.as_ref())
+            .map(|p| p.join("\n"))
+            .filter(|s| !s.is_empty());
 
-    Ok(QuoteSummary {
-        book_token_expires: details
-            .book_token
-            .as_ref()
-            .and_then(|t| t.date_expires.clone()),
-        fee_amount: details
-            .cancellation
-            .as_ref()
-            .and_then(|c| c.fee.as_ref())
-            .and_then(|f| f.amount),
-        fee_tax: details
-            .cancellation
-            .as_ref()
-            .and_then(|c| c.fee.as_ref())
-            .and_then(|f| f.tax),
-        fee_cutoff: details
-            .cancellation
-            .as_ref()
-            .and_then(|c| c.fee.as_ref())
-            .and_then(|f| f.date_cut_off.clone()),
-        refund_cutoff: details
-            .cancellation
-            .as_ref()
-            .and_then(|c| c.refund.as_ref())
-            .and_then(|r| r.date_cut_off.clone()),
-        change_cutoff: details.change.as_ref().and_then(|c| c.date_cut_off.clone()),
-        fee_display: details
-            .cancellation
-            .as_ref()
-            .and_then(|c| c.fee.as_ref())
-            .and_then(|f| f.display.as_ref())
-            .and_then(|d| d.amount.clone()),
-        payment_type: details
-            .payment
-            .as_ref()
-            .and_then(|p| p.config.as_ref())
-            .and_then(|c| c.kind.clone()),
-        payment_amounts: json!({
-            "reservation_charge": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.reservation_charge),
-            "subtotal": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.subtotal),
-            "resy_fee": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.resy_fee),
-            "service_fee": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.service_fee),
-            "tax": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.tax),
-            "total": details.payment.as_ref().and_then(|p| p.amounts.as_ref()).and_then(|a| a.total),
-        }),
-        payment_methods,
-        policy_text,
-        has_book_token: details
-            .book_token
-            .as_ref()
-            .and_then(|t| t.value.as_ref())
-            .is_some(),
-    })
+        let payment_methods = to_json_value(
+            details
+                .user
+                .as_ref()
+                .and_then(|u| u.payment_methods.as_ref())
+                .cloned()
+                .unwrap_or_default(),
+        )?;
+
+        let amounts = details.payment.as_ref().and_then(|p| p.amounts.as_ref());
+
+        Ok(QuoteSummary {
+            book_token_expires: details.book_token.as_ref().and_then(|t| t.date_expires),
+            fee_amount: details
+                .cancellation
+                .as_ref()
+                .and_then(|c| c.fee.as_ref())
+                .and_then(|f| f.amount),
+            fee_tax: details
+                .cancellation
+                .as_ref()
+                .and_then(|c| c.fee.as_ref())
+                .and_then(|f| f.tax),
+            fee_cutoff: details
+                .cancellation
+                .as_ref()
+                .and_then(|c| c.fee.as_ref())
+                .and_then(|f| f.date_cut_off),
+            refund_cutoff: details
+                .cancellation
+                .as_ref()
+                .and_then(|c| c.refund.as_ref())
+                .and_then(|r| r.date_cut_off),
+            change_cutoff: details.change.as_ref().and_then(|c| c.date_cut_off),
+            fee_display: details
+                .cancellation
+                .as_ref()
+                .and_then(|c| c.fee.as_ref())
+                .and_then(|f| f.display.as_ref())
+                .and_then(|d| d.amount.clone()),
+            payment_type: details
+                .payment
+                .as_ref()
+                .and_then(|p| p.config.as_ref())
+                .and_then(|c| c.kind.clone()),
+            payment_amounts: json!({
+                "reservation_charge": amounts.and_then(|a| a.reservation_charge),
+                "subtotal": amounts.and_then(|a| a.subtotal),
+                "resy_fee": amounts.and_then(|a| a.resy_fee),
+                "service_fee": amounts.and_then(|a| a.service_fee),
+                "tax": amounts.and_then(|a| a.tax),
+                "total": amounts.and_then(|a| a.total),
+            }),
+            payment_methods,
+            policy_text,
+            has_book_token: details
+                .book_token
+                .as_ref()
+                .and_then(|t| t.value.as_ref())
+                .is_some(),
+        })
+    }
 }
 
 pub fn to_json_value<T: Serialize>(value: T) -> Result<Value, AppError> {
