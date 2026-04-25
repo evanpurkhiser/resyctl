@@ -43,7 +43,6 @@ pub struct AvailableSlot {
     pub party_max: Option<i64>,
     pub is_paid: bool,
     pub payment: Option<SlotPaymentSummary>,
-    pub raw: Value,
 }
 
 impl AvailableSlot {
@@ -91,8 +90,6 @@ pub fn extract_slots(
                 slot_type: slot_type.clone(),
             })?;
 
-            let raw = to_json_value(slot)?;
-
             let payment = slot.payment.as_ref().map(|p| SlotPaymentSummary {
                 is_paid: p.is_paid,
                 cancellation_fee: p.cancellation_fee,
@@ -116,7 +113,6 @@ pub fn extract_slots(
                     .and_then(|p| p.is_paid)
                     .unwrap_or(false),
                 payment,
-                raw,
             });
         }
     }

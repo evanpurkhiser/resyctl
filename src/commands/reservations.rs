@@ -20,7 +20,6 @@ struct NormalizedReservation {
     venue: NormalizedVenue,
     cancellation: NormalizedCancellation,
     payment: NormalizedPayment,
-    raw: Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,7 +60,7 @@ struct NormalizedInvoice {
 }
 
 impl NormalizedReservation {
-    fn from_item(item: &ReservationItem, venues: Option<&Value>) -> Result<Self, Error> {
+    fn from_item(item: &ReservationItem, venues: Option<&Value>) -> Self {
         let venue_id = item.venue.as_ref().and_then(|v| v.id).or(item.venue_id);
         let venue_name = item
             .venue
@@ -69,7 +68,7 @@ impl NormalizedReservation {
             .and_then(|v| v.name.clone())
             .or_else(|| venue_name_from_lookup(venues, venue_id));
 
-        Ok(Self {
+        Self {
             reservation_id: item.reservation_id,
             resy_token: item.resy_token.clone(),
             day: item.day,
@@ -137,8 +136,7 @@ impl NormalizedReservation {
                         .and_then(|i| i.total),
                 },
             },
-            raw: to_json_value(item)?,
-        })
+        }
     }
 
     fn sort_key(&self) -> (Option<NaiveDate>, Option<NaiveTime>) {
@@ -189,7 +187,7 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, E
         .iter()
         .filter(|item| !apply_upcoming_filter || is_upcoming_reservation(item, today))
         .map(|item| NormalizedReservation::from_item(item, raw.venues.as_ref()))
-        .collect::<Result<_, Error>>()?;
+        .collect();
 
     normalized.sort_by_key(|item| item.sort_key());
 

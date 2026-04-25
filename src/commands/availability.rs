@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use crate::api::ResyClient;
 use crate::cli::AvailabilityArgs;
 use crate::error::{Error, InputError};
-use crate::util::extract_slots;
+use crate::util::{extract_slots, to_json_value};
 
 pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, Error> {
     match (&args.month, &args.date) {
@@ -95,5 +95,6 @@ pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, E
         "party_size": args.party_size,
         "count": slots.len(),
         "slots": slots,
+        "raw": to_json_value(&raw)?,
     }))
 }
