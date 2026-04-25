@@ -1,17 +1,72 @@
 use serde_json::{Value, json};
+use chrono::NaiveDate;
+use chrono::Utc;
 
 use crate::api::ResyClient;
 use crate::cli::ReservationsArgs;
 use crate::error::AppError;
 
 pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, AppError> {
-    let raw = client.reservation_by_token(&args.resy_token).await?;
+    let raw = client
+        .reservations(args.resy_token.as_deref(), args.limit, args.offset)
+        .await?;
 
-    let normalized: Vec<Value> = raw
+    let today = Utc::now().date_naive();
+    let apply_upcoming_filter = !args.all && args.upcoming;
+
+    let normalized_all: Vec<Value> = raw
         .reservations
         .iter()
+        .filter(|r| {
+            if !apply_upcoming_filter {
+                return true;
+            }
+
+            let day_ok = r
+                .day
+                .as_deref()
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
+                .map(|d| d >= today)
+                .unwrap_or(false);
+
+            let not_finished = r
+                .status
+                .as_ref()
+                .and_then(|s| s.finished)
+                .map(|v| v == 0)
+                .unwrap_or(true);
+
+            let not_no_show = r
+                .status
+                .as_ref()
+                .and_then(|s| s.no_show)
+                .map(|v| v == 0)
+                .unwrap_or(true);
+
+            day_ok && not_finished && not_no_show
+        })
         .map(|r| {
             let raw_item = serde_json::to_value(r).unwrap_or_else(|_| Value::Null);
+            let venue_id = r
+                .venue
+                .as_ref()
+                .and_then(|v| v.id)
+                .or(r.venue_id);
+            let venue_name = r
+                .venue
+                .as_ref()
+                .and_then(|v| v.name.as_deref())
+                .map(str::to_string)
+                .or_else(|| {
+                    venue_id.and_then(|id| {
+                        raw.venues
+                            .as_ref()
+                            .and_then(|v| v.get(id.to_string()))
+                            .and_then(|v| v.get("name"))
+                            .and_then(Value::as_str)
+                            .map(str::to_string)
+                    })
+                });
             json!({
                 "reservation_id": r.reservation_id,
                 "resy_token": r.resy_token,
@@ -23,8 +78,8 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
                     "no_show": r.status.as_ref().and_then(|s| s.no_show),
                 },
                 "venue": {
-                    "id": r.venue.as_ref().and_then(|v| v.id),
-                    "name": r.venue.as_ref().and_then(|v| v.name.as_deref()),
+                    "id": venue_id,
+                    "name": venue_name,
                 },
                 "cancellation": {
                     "allowed": r.cancellation.as_ref().and_then(|c| c.allowed),
@@ -49,12 +104,25 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
         })
         .collect();
 
+    let mut normalized = normalized_all;
+    normalized.sort_by(|a, b| {
+        let ad = a.get("day").and_then(Value::as_str).unwrap_or("");
+        let at = a.get("time_slot").and_then(Value::as_str).unwrap_or("");
+        let bd = b.get("day").and_then(Value::as_str).unwrap_or("");
+        let bt = b.get("time_slot").and_then(Value::as_str).unwrap_or("");
+        (ad, at).cmp(&(bd, bt))
+    });
+
     let raw_value = serde_json::to_value(&raw).unwrap_or_else(|_| Value::Null);
 
     Ok(json!({
         "ok": true,
         "input": {
-            "resy_token_present": !args.resy_token.is_empty(),
+            "resy_token_present": args.resy_token.as_ref().map(|s| !s.is_empty()).unwrap_or(false),
+            "upcoming": apply_upcoming_filter,
+            "all": args.all,
+            "limit": args.limit,
+            "offset": args.offset,
         },
         "count": normalized.len(),
         "reservations": normalized,

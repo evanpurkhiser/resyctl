@@ -86,7 +86,15 @@ pub struct BookArgs {
 #[derive(Args, Debug)]
 pub struct ReservationsArgs {
     #[arg(long)]
-    pub resy_token: String,
+    pub resy_token: Option<String>,
+    #[arg(long, default_value_t = true)]
+    pub upcoming: bool,
+    #[arg(long)]
+    pub all: bool,
+    #[arg(long)]
+    pub limit: Option<u32>,
+    #[arg(long)]
+    pub offset: Option<u32>,
 }
 
 #[derive(Args, Debug)]

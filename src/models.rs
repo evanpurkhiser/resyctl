@@ -194,6 +194,7 @@ pub struct ReservationLookupResponse {
 pub struct ReservationItem {
     pub reservation_id: Option<i64>,
     pub resy_token: Option<String>,
+    pub venue_id: Option<i64>,
     pub day: Option<String>,
     pub time_slot: Option<String>,
     pub num_seats: Option<i64>,

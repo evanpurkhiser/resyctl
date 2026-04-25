@@ -138,19 +138,39 @@ impl ResyClient {
         self.post_json_typed("https://api.resy.com/3/details", body).await
     }
 
-    pub async fn reservation_by_token(
+    pub async fn reservations(
         &self,
-        resy_token: &str,
+        resy_token: Option<&str>,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<ReservationLookupResponse, AppError> {
+        let mut query: Vec<(&str, String)> = Vec::new();
+        if let Some(token) = resy_token {
+            query.push(("resy_token", token.to_string()));
+        }
+        if let Some(limit) = limit {
+            query.push(("limit", limit.to_string()));
+        }
+        if let Some(offset) = offset {
+            query.push(("offset", offset.to_string()));
+        }
+
         let response = self
             .http
             .get("https://api.resy.com/3/user/reservations")
-            .query(&[("resy_token", resy_token)])
+            .query(&query)
             .send()
             .await
             .map_err(|e| AppError::new(4, format!("reservations request failed: {e}")))?;
 
         read_json_typed_response(response).await
+    }
+
+    pub async fn reservation_by_token(
+        &self,
+        resy_token: &str,
+    ) -> Result<ReservationLookupResponse, AppError> {
+        self.reservations(Some(resy_token), None, None).await
     }
 
     pub async fn cancel(&self, resy_token: &str) -> Result<CancelResponse, AppError> {
