@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
-use clap::ArgAction;
+
+use crate::types::{DateArg, MonthArg, TimeArg};
 
 pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
@@ -7,12 +8,6 @@ pub const DEFAULT_LNG: f64 = -74.0060;
 #[derive(Parser, Debug)]
 #[command(name = "ressy", about = "Resy CLI (JSON output only)")]
 pub struct Cli {
-    /// Override auth token used for authenticated API calls.
-    #[arg(long, global = true)]
-    pub auth_token: Option<String>,
-    /// Override Resy API key used in the authorization header.
-    #[arg(long, global = true)]
-    pub api_key: Option<String>,
     /// Override payment method id used for booking requests.
     #[arg(long, global = true)]
     pub payment_method_id: Option<i64>,
@@ -32,6 +27,8 @@ pub enum Command {
     Book(BookArgs),
     /// List reservations from the account.
     Reservations(ReservationsArgs),
+    /// List available payment methods for booking.
+    PaymentMethods(PaymentMethodsArgs),
     /// Cancel a reservation by resy token.
     Cancel(CancelArgs),
     /// Authenticate and inspect authentication status.
@@ -60,14 +57,14 @@ pub struct AvailabilityArgs {
     /// Resy venue id.
     pub restaurant_id: i64,
     /// Month to scan in YYYY-MM format.
-    #[arg(long)]
-    pub month: Option<String>,
+    #[arg(long, value_parser = MonthArg::parse)]
+    pub month: Option<MonthArg>,
     /// In month mode, return only days that have at least one slot.
     #[arg(long)]
     pub days: bool,
     /// Specific date to query in YYYY-MM-DD format.
-    #[arg(long)]
-    pub date: Option<String>,
+    #[arg(long, value_parser = DateArg::parse)]
+    pub date: Option<DateArg>,
     /// Party size used in availability lookup.
     #[arg(long, default_value_t = 2)]
     pub party_size: u8,
@@ -75,11 +72,11 @@ pub struct AvailabilityArgs {
     #[arg(long)]
     pub seating: Option<String>,
     /// Filter to slots at or after this local time (HH:MM).
-    #[arg(long)]
-    pub time_after: Option<String>,
+    #[arg(long, value_parser = TimeArg::parse)]
+    pub time_after: Option<TimeArg>,
     /// Filter to slots at or before this local time (HH:MM).
-    #[arg(long)]
-    pub time_before: Option<String>,
+    #[arg(long, value_parser = TimeArg::parse)]
+    pub time_before: Option<TimeArg>,
     /// Latitude used for availability requests.
     #[arg(long, default_value_t = DEFAULT_LAT)]
     pub lat: f64,
@@ -118,7 +115,6 @@ pub struct BookArgs {
 #[derive(Args, Debug)]
 pub struct ReservationsArgs {
     /// Optional reservation token for targeted lookup.
-    #[arg(long)]
     pub resy_token: Option<String>,
     /// Return only upcoming reservations (default behavior).
     #[arg(long, default_value_t = true)]
@@ -137,11 +133,7 @@ pub struct ReservationsArgs {
 #[derive(Args, Debug)]
 pub struct CancelArgs {
     /// Reservation token to cancel.
-    #[arg(long)]
     pub resy_token: String,
-    /// Refresh reservation data first to use latest token if it rotated.
-    #[arg(long, action = ArgAction::Set, default_value_t = true)]
-    pub refresh_token: bool,
     /// Confirm live cancellation (required unless using dry-run).
     #[arg(long)]
     pub yes: bool,
@@ -149,6 +141,9 @@ pub struct CancelArgs {
     #[arg(long)]
     pub dry_run: bool,
 }
+
+#[derive(Args, Debug)]
+pub struct PaymentMethodsArgs {}
 
 #[derive(Args, Debug)]
 pub struct ConfigArgs {}

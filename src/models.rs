@@ -1,5 +1,28 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use serde_json::Value;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthPasswordResponse {
+    pub token: Option<String>,
+    pub payment_method_id: Option<i64>,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub id: Option<i64>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    #[serde(rename = "em_address")]
+    pub email: Option<String>,
+    pub payment_method_id: Option<i64>,
+    pub payment_methods: Option<Vec<PaymentMethod>>,
+    pub num_bookings: Option<i64>,
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {

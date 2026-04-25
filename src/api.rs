@@ -4,8 +4,8 @@ use serde_json::{Value, json};
 
 use crate::error::AppError;
 use crate::models::{
-    BookResponse, CancelResponse, DetailsResponse, FindResponse, ReservationLookupResponse,
-    SearchResponse,
+    AuthPasswordResponse, BookResponse, CancelResponse, DetailsResponse, FindResponse,
+    ReservationLookupResponse, SearchResponse, UserResponse,
 };
 
 #[derive(Clone)]
@@ -79,7 +79,11 @@ impl ResyClient {
         })
     }
 
-    pub async fn auth_password(&self, email: &str, password: &str) -> Result<Value, AppError> {
+    pub async fn auth_password(
+        &self,
+        email: &str,
+        password: &str,
+    ) -> Result<AuthPasswordResponse, AppError> {
         let response = self
             .http
             .post(self.endpoint("/3/auth/password"))
@@ -89,17 +93,17 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("auth request failed: {e}")))?;
 
-        read_json_value_response(response).await
+        read_json_response(response).await
     }
 
-    pub async fn user(&self) -> Result<Value, AppError> {
+    pub async fn user(&self) -> Result<UserResponse, AppError> {
         let response = self
             .http
             .get(self.endpoint("/2/user"))
             .send()
             .await
             .map_err(|e| AppError::new(4, format!("user request failed: {e}")))?;
-        read_json_value_response(response).await
+        read_json_response(response).await
     }
 
     pub async fn search(
@@ -141,7 +145,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("find request failed: {e}")))?;
 
-        read_json_typed_response(response).await
+        read_json_response(response).await
     }
 
     pub async fn details_with_commit(
@@ -183,7 +187,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("reservations request failed: {e}")))?;
 
-        read_json_typed_response(response).await
+        read_json_response(response).await
     }
 
     pub async fn reservation_by_token(
@@ -203,7 +207,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("cancel request failed: {e}")))?;
 
-        read_json_typed_response(response).await
+        read_json_response(response).await
     }
 
     pub async fn book(
@@ -218,10 +222,7 @@ impl ResyClient {
             let payment = json!({ "id": id }).to_string();
             form.push(("struct_payment_method", payment));
         }
-        form.push((
-            "replace",
-            if replace { "1" } else { "0" }.to_string(),
-        ));
+        form.push(("replace", if replace { "1" } else { "0" }.to_string()));
         form.push((
             "venue_marketing_opt_in",
             if venue_marketing_opt_in { "1" } else { "0" }.to_string(),
@@ -236,7 +237,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("book request failed: {e}")))?;
 
-        read_json_typed_response(response).await
+        read_json_response(response).await
     }
 
     async fn post_json_typed<T: DeserializeOwned>(
@@ -253,7 +254,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("request failed: {e}")))?;
 
-        read_json_typed_response(response).await
+        read_json_response(response).await
     }
 
     fn endpoint(&self, path: &str) -> String {
@@ -265,7 +266,7 @@ fn normalize_base_url(base_url: &str) -> String {
     base_url.trim_end_matches('/').to_string()
 }
 
-async fn read_json_typed_response<T: DeserializeOwned>(
+async fn read_json_response<T: DeserializeOwned>(
     response: reqwest::Response,
 ) -> Result<T, AppError> {
     let status = response.status();
@@ -274,37 +275,22 @@ async fn read_json_typed_response<T: DeserializeOwned>(
         .await
         .map_err(|e| AppError::new(4, format!("failed reading response body: {e}")))?;
 
+    let parsed = serde_json::from_str::<Value>(&body).map_err(|e| {
+        AppError::new(
+            4,
+            format!("failed to deserialize API response body as JSON: {e}"),
+        )
+    })?;
+
     if !status.is_success() {
-        let parsed = serde_json::from_str::<Value>(&body)
-            .unwrap_or_else(|_| json!({"raw": body, "parse_error": true}));
         return Err(AppError::new(
             4,
             format!("api error {}: {}", status.as_u16(), parsed),
         ));
     }
 
-    serde_json::from_str::<T>(&body)
+    serde_json::from_value::<T>(parsed)
         .map_err(|e| AppError::new(4, format!("failed to deserialize API response: {e}")))
-}
-
-async fn read_json_value_response(response: reqwest::Response) -> Result<Value, AppError> {
-    let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| AppError::new(4, format!("failed reading response body: {e}")))?;
-
-    let parsed = serde_json::from_str::<Value>(&body)
-        .unwrap_or_else(|_| json!({"raw": body, "parse_error": true}));
-
-    if !status.is_success() {
-        return Err(AppError::new(
-            4,
-            format!("api error {}: {}", status.as_u16(), parsed),
-        ));
-    }
-
-    Ok(parsed)
 }
 
 #[cfg(test)]
@@ -317,11 +303,7 @@ mod tests {
     use super::*;
 
     fn fixture(name: &str) -> String {
-        let path = format!(
-            "{}/tests/fixtures/{}",
-            env!("CARGO_MANIFEST_DIR"),
-            name
-        );
+        let path = format!("{}/tests/fixtures/{}", env!("CARGO_MANIFEST_DIR"), name);
         fs::read_to_string(path).expect("fixture should exist")
     }
 
@@ -347,7 +329,10 @@ mod tests {
 
         mock.assert();
         assert_eq!(response.search.hits.len(), 2);
-        assert_eq!(response.search.hits[0].id.as_ref().and_then(|id| id.resy), Some(84214));
+        assert_eq!(
+            response.search.hits[0].id.as_ref().and_then(|id| id.resy),
+            Some(84214)
+        );
     }
 
     #[tokio::test]
@@ -502,7 +487,10 @@ mod tests {
 
         mock.assert();
         assert_eq!(
-            response.payment.and_then(|p| p.transaction).and_then(|t| t.refund),
+            response
+                .payment
+                .and_then(|p| p.transaction)
+                .and_then(|t| t.refund),
             Some(1)
         );
     }

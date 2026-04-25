@@ -48,13 +48,11 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
     match cli.command {
-        Command::Auth(args) => commands::auth::run(args, cli.api_key, cli.auth_token).await,
-        Command::Config(_) => {
-            commands::config_cmd::run(cli.auth_token, cli.api_key, cli.payment_method_id).await
-        }
+        Command::Auth(args) => commands::auth::run(args).await,
+        Command::Config(_) => commands::config_cmd::run(cli.payment_method_id).await,
         command => {
-            let auth_token = resolve_auth_token(cli.auth_token)?;
-            let api_key = resolve_api_key(cli.api_key);
+            let auth_token = resolve_auth_token()?;
+            let api_key = resolve_api_key();
             let payment_method_id = resolve_payment_method_id(cli.payment_method_id);
             let client = ResyClient::new(&api_key, &auth_token)?;
 
@@ -64,6 +62,9 @@ async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
                 Command::Quote(args) => commands::quote::run(&client, args).await,
                 Command::Book(args) => commands::book::run(&client, args, payment_method_id).await,
                 Command::Reservations(args) => commands::reservations::run(&client, args).await,
+                Command::PaymentMethods(args) => {
+                    commands::payment_methods::run(&client, args).await
+                }
                 Command::Cancel(args) => commands::cancel::run(&client, args).await,
                 Command::Auth(_) | Command::Config(_) => {
                     Err(AppError::new(5, "unreachable command state"))

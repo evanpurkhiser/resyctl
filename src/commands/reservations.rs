@@ -1,10 +1,187 @@
+use chrono::{NaiveDate, Utc};
+use serde::Serialize;
 use serde_json::{Value, json};
-use chrono::NaiveDate;
-use chrono::Utc;
 
 use crate::api::ResyClient;
 use crate::cli::ReservationsArgs;
 use crate::error::AppError;
+use crate::models::{PaymentMethod, ReservationItem, ReservationLookupResponse};
+use crate::util::to_json_value;
+
+#[derive(Debug, Serialize)]
+struct NormalizedReservation {
+    reservation_id: Option<i64>,
+    resy_token: Option<String>,
+    day: Option<String>,
+    time_slot: Option<String>,
+    num_seats: Option<i64>,
+    status: NormalizedStatus,
+    venue: NormalizedVenue,
+    cancellation: NormalizedCancellation,
+    payment: NormalizedPayment,
+    raw: Value,
+}
+
+#[derive(Debug, Serialize)]
+struct NormalizedStatus {
+    finished: Option<i64>,
+    no_show: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+struct NormalizedVenue {
+    id: Option<i64>,
+    name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct NormalizedCancellation {
+    allowed: Option<bool>,
+    fee_amount: Option<f64>,
+    fee_display: Option<String>,
+    fee_cutoff: Option<String>,
+    refund_cutoff: Option<String>,
+    policy: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+struct NormalizedPayment {
+    payment_method: Option<PaymentMethod>,
+    invoice: NormalizedInvoice,
+}
+
+#[derive(Debug, Serialize)]
+struct NormalizedInvoice {
+    subtotal: Option<f64>,
+    tax: Option<f64>,
+    service_fee: Option<f64>,
+    resy_fee: Option<f64>,
+    total: Option<f64>,
+}
+
+impl NormalizedReservation {
+    fn from_item(item: &ReservationItem, venues: Option<&Value>) -> Result<Self, AppError> {
+        let venue_id = item.venue.as_ref().and_then(|v| v.id).or(item.venue_id);
+        let venue_name = item
+            .venue
+            .as_ref()
+            .and_then(|v| v.name.clone())
+            .or_else(|| venue_name_from_lookup(venues, venue_id));
+
+        Ok(Self {
+            reservation_id: item.reservation_id,
+            resy_token: item.resy_token.clone(),
+            day: item.day.clone(),
+            time_slot: item.time_slot.clone(),
+            num_seats: item.num_seats,
+            status: NormalizedStatus {
+                finished: item.status.as_ref().and_then(|s| s.finished),
+                no_show: item.status.as_ref().and_then(|s| s.no_show),
+            },
+            venue: NormalizedVenue {
+                id: venue_id,
+                name: venue_name,
+            },
+            cancellation: NormalizedCancellation {
+                allowed: item.cancellation.as_ref().and_then(|c| c.allowed),
+                fee_amount: item
+                    .cancellation
+                    .as_ref()
+                    .and_then(|c| c.fee.as_ref())
+                    .and_then(|f| f.amount),
+                fee_display: item
+                    .cancellation
+                    .as_ref()
+                    .and_then(|c| c.fee.as_ref())
+                    .and_then(|f| f.display.as_ref())
+                    .and_then(|d| d.amount.clone()),
+                fee_cutoff: item
+                    .cancellation
+                    .as_ref()
+                    .and_then(|c| c.fee.as_ref())
+                    .and_then(|f| f.date_cut_off.clone()),
+                refund_cutoff: item
+                    .cancellation
+                    .as_ref()
+                    .and_then(|c| c.date_refund_cut_off.clone()),
+                policy: item.cancellation_policy.clone(),
+            },
+            payment: NormalizedPayment {
+                payment_method: item.payment_method.clone(),
+                invoice: NormalizedInvoice {
+                    subtotal: item
+                        .payment
+                        .as_ref()
+                        .and_then(|p| p.invoice.as_ref())
+                        .and_then(|i| i.subtotal),
+                    tax: item
+                        .payment
+                        .as_ref()
+                        .and_then(|p| p.invoice.as_ref())
+                        .and_then(|i| i.tax),
+                    service_fee: item
+                        .payment
+                        .as_ref()
+                        .and_then(|p| p.invoice.as_ref())
+                        .and_then(|i| i.service_fee),
+                    resy_fee: item
+                        .payment
+                        .as_ref()
+                        .and_then(|p| p.invoice.as_ref())
+                        .and_then(|i| i.resy_fee),
+                    total: item
+                        .payment
+                        .as_ref()
+                        .and_then(|p| p.invoice.as_ref())
+                        .and_then(|i| i.total),
+                },
+            },
+            raw: to_json_value(item)?,
+        })
+    }
+
+    fn sort_key(&self) -> (&str, &str) {
+        (
+            self.day.as_deref().unwrap_or_default(),
+            self.time_slot.as_deref().unwrap_or_default(),
+        )
+    }
+}
+
+fn venue_name_from_lookup(venues: Option<&Value>, venue_id: Option<i64>) -> Option<String> {
+    let venue_id = venue_id?;
+    let key = venue_id.to_string();
+    venues
+        .and_then(|v| v.get(&key))
+        .and_then(|v| v.get("name"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+fn is_upcoming_reservation(item: &ReservationItem, today: NaiveDate) -> bool {
+    let is_today_or_future = item
+        .day
+        .as_deref()
+        .and_then(|day| NaiveDate::parse_from_str(day, "%Y-%m-%d").ok())
+        .map(|day| day >= today)
+        .unwrap_or(false);
+
+    let not_finished = item
+        .status
+        .as_ref()
+        .and_then(|s| s.finished)
+        .map(|value| value == 0)
+        .unwrap_or(true);
+
+    let not_no_show = item
+        .status
+        .as_ref()
+        .and_then(|s| s.no_show)
+        .map(|value| value == 0)
+        .unwrap_or(true);
+
+    is_today_or_future && not_finished && not_no_show
+}
 
 pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, AppError> {
     let raw = client
@@ -14,106 +191,22 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
     let today = Utc::now().date_naive();
     let apply_upcoming_filter = !args.all && args.upcoming;
 
-    let normalized_all: Vec<Value> = raw
+    let mut normalized: Vec<NormalizedReservation> = raw
         .reservations
         .iter()
-        .filter(|r| {
-            if !apply_upcoming_filter {
-                return true;
-            }
+        .filter(|item| !apply_upcoming_filter || is_upcoming_reservation(item, today))
+        .map(|item| NormalizedReservation::from_item(item, raw.venues.as_ref()))
+        .collect::<Result<_, AppError>>()?;
 
-            let day_ok = r
-                .day
-                .as_deref()
-                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
-                .map(|d| d >= today)
-                .unwrap_or(false);
+    normalized.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
 
-            let not_finished = r
-                .status
-                .as_ref()
-                .and_then(|s| s.finished)
-                .map(|v| v == 0)
-                .unwrap_or(true);
+    let raw_value = to_json_value(&raw)?;
 
-            let not_no_show = r
-                .status
-                .as_ref()
-                .and_then(|s| s.no_show)
-                .map(|v| v == 0)
-                .unwrap_or(true);
-
-            day_ok && not_finished && not_no_show
-        })
-        .map(|r| {
-            let raw_item = serde_json::to_value(r).unwrap_or_else(|_| Value::Null);
-            let venue_id = r
-                .venue
-                .as_ref()
-                .and_then(|v| v.id)
-                .or(r.venue_id);
-            let venue_name = r
-                .venue
-                .as_ref()
-                .and_then(|v| v.name.as_deref())
-                .map(str::to_string)
-                .or_else(|| {
-                    venue_id.and_then(|id| {
-                        raw.venues
-                            .as_ref()
-                            .and_then(|v| v.get(id.to_string()))
-                            .and_then(|v| v.get("name"))
-                            .and_then(Value::as_str)
-                            .map(str::to_string)
-                    })
-                });
-            json!({
-                "reservation_id": r.reservation_id,
-                "resy_token": r.resy_token,
-                "day": r.day,
-                "time_slot": r.time_slot,
-                "num_seats": r.num_seats,
-                "status": {
-                    "finished": r.status.as_ref().and_then(|s| s.finished),
-                    "no_show": r.status.as_ref().and_then(|s| s.no_show),
-                },
-                "venue": {
-                    "id": venue_id,
-                    "name": venue_name,
-                },
-                "cancellation": {
-                    "allowed": r.cancellation.as_ref().and_then(|c| c.allowed),
-                    "fee_amount": r.cancellation.as_ref().and_then(|c| c.fee.as_ref()).and_then(|f| f.amount),
-                    "fee_display": r.cancellation.as_ref().and_then(|c| c.fee.as_ref()).and_then(|f| f.display.as_ref()).and_then(|d| d.amount.as_deref()),
-                    "fee_cutoff": r.cancellation.as_ref().and_then(|c| c.fee.as_ref()).and_then(|f| f.date_cut_off.as_deref()),
-                    "refund_cutoff": r.cancellation.as_ref().and_then(|c| c.date_refund_cut_off.as_deref()),
-                    "policy": r.cancellation_policy,
-                },
-                "payment": {
-                    "payment_method": r.payment_method,
-                    "invoice": {
-                        "subtotal": r.payment.as_ref().and_then(|p| p.invoice.as_ref()).and_then(|i| i.subtotal),
-                        "tax": r.payment.as_ref().and_then(|p| p.invoice.as_ref()).and_then(|i| i.tax),
-                        "service_fee": r.payment.as_ref().and_then(|p| p.invoice.as_ref()).and_then(|i| i.service_fee),
-                        "resy_fee": r.payment.as_ref().and_then(|p| p.invoice.as_ref()).and_then(|i| i.resy_fee),
-                        "total": r.payment.as_ref().and_then(|p| p.invoice.as_ref()).and_then(|i| i.total),
-                    }
-                },
-                "raw": raw_item,
-            })
-        })
-        .collect();
-
-    let mut normalized = normalized_all;
-    normalized.sort_by(|a, b| {
-        let ad = a.get("day").and_then(Value::as_str).unwrap_or("");
-        let at = a.get("time_slot").and_then(Value::as_str).unwrap_or("");
-        let bd = b.get("day").and_then(Value::as_str).unwrap_or("");
-        let bt = b.get("time_slot").and_then(Value::as_str).unwrap_or("");
-        (ad, at).cmp(&(bd, bt))
-    });
-
-    let raw_value = serde_json::to_value(&raw).unwrap_or_else(|_| Value::Null);
+    let ReservationLookupResponse {
+        metadata,
+        reservations: _,
+        venues: _,
+    } = raw;
 
     Ok(json!({
         "ok": true,
@@ -126,7 +219,52 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, A
         },
         "count": normalized.len(),
         "reservations": normalized,
-        "metadata": raw.metadata,
+        "metadata": metadata,
         "raw": raw_value,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDate;
+    use serde_json::json;
+
+    use super::{is_upcoming_reservation, venue_name_from_lookup};
+    use crate::models::ReservationItem;
+
+    #[test]
+    fn upcoming_filter_requires_future_and_not_finished() {
+        let item: ReservationItem = serde_json::from_value(json!({
+            "day": "2026-04-30",
+            "status": {"finished": 0, "no_show": 0}
+        }))
+        .expect("valid reservation item");
+        let finished: ReservationItem = serde_json::from_value(json!({
+            "day": "2026-04-30",
+            "status": {"finished": 1, "no_show": 0}
+        }))
+        .expect("valid reservation item");
+
+        assert!(is_upcoming_reservation(
+            &item,
+            NaiveDate::from_ymd_opt(2026, 4, 24).expect("valid date")
+        ));
+        assert!(!is_upcoming_reservation(
+            &finished,
+            NaiveDate::from_ymd_opt(2026, 4, 24).expect("valid date")
+        ));
+    }
+
+    #[test]
+    fn venue_name_falls_back_to_lookup() {
+        let venues = json!({
+            "84214": {"name": "Ishq"}
+        });
+
+        assert_eq!(
+            venue_name_from_lookup(Some(&venues), Some(84214)),
+            Some("Ishq".to_string())
+        );
+        assert_eq!(venue_name_from_lookup(Some(&venues), Some(1)), None);
+    }
 }

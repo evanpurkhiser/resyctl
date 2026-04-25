@@ -8,24 +8,12 @@ use crate::error::AppError;
 
 pub const DEFAULT_API_KEY: &str = "AIcdK2rLXG6TYwJseSbmrBAy3RP81ocd";
 
-pub fn resolve_auth_token(flag: Option<String>) -> Result<String, AppError> {
-    if let Some(v) = flag
-        && !v.trim().is_empty()
-    {
-        return Ok(v.trim().to_string());
-    }
-    for key in ["RESSY_AUTH_TOKEN", "RESY_AUTH_TOKEN", "X_RESY_UNIVERSAL_AUTH"] {
-        if let Ok(v) = env::var(key)
-            && !v.trim().is_empty()
-        {
-            return Ok(v.trim().to_string());
-        }
-    }
-
+pub fn resolve_auth_token() -> Result<String, AppError> {
     let default_path = Path::new("secrets/resy_auth_token");
     if default_path.exists() {
-        let token = fs::read_to_string(default_path)
-            .map_err(|e| AppError::new(4, format!("failed reading secrets/resy_auth_token: {e}")))?;
+        let token = fs::read_to_string(default_path).map_err(|e| {
+            AppError::new(4, format!("failed reading secrets/resy_auth_token: {e}"))
+        })?;
         if !token.trim().is_empty() {
             return Ok(token.trim().to_string());
         }
@@ -33,23 +21,11 @@ pub fn resolve_auth_token(flag: Option<String>) -> Result<String, AppError> {
 
     Err(AppError::new(
         5,
-        "missing auth token; set --auth-token, RESSY_AUTH_TOKEN, or secrets/resy_auth_token",
+        "missing auth token; run `ressy auth login --write-secrets` first",
     ))
 }
 
-pub fn resolve_api_key(flag: Option<String>) -> String {
-    if let Some(v) = flag
-        && !v.trim().is_empty()
-    {
-        return v.trim().to_string();
-    }
-    for key in ["RESSY_API_KEY", "RESY_API_KEY"] {
-        if let Ok(v) = env::var(key)
-            && !v.trim().is_empty()
-        {
-            return v.trim().to_string();
-        }
-    }
+pub fn resolve_api_key() -> String {
     DEFAULT_API_KEY.to_string()
 }
 
@@ -75,10 +51,10 @@ pub fn resolve_payment_method_id(flag: Option<i64>) -> Option<i64> {
     None
 }
 
-pub fn config_snapshot(cli_auth_token: Option<&str>, cli_api_key: Option<&str>, cli_payment_id: Option<i64>) -> Value {
-    let effective_api_key = resolve_api_key(cli_api_key.map(str::to_string));
+pub fn config_snapshot(cli_payment_id: Option<i64>) -> Value {
+    let effective_api_key = resolve_api_key();
     let effective_payment = resolve_payment_method_id(cli_payment_id);
-    let auth_resolved = resolve_auth_token(cli_auth_token.map(str::to_string)).ok();
+    let auth_resolved = resolve_auth_token().ok();
 
     json!({
         "ok": true,
@@ -90,14 +66,10 @@ pub fn config_snapshot(cli_auth_token: Option<&str>, cli_api_key: Option<&str>, 
         },
         "sources": {
             "auth_token": {
-                "cli_flag": cli_auth_token.is_some(),
-                "env": env_has_any(&["RESSY_AUTH_TOKEN", "RESY_AUTH_TOKEN", "X_RESY_UNIVERSAL_AUTH"]),
                 "file": Path::new("secrets/resy_auth_token").exists(),
             },
             "api_key": {
-                "cli_flag": cli_api_key.is_some(),
-                "env": env_has_any(&["RESSY_API_KEY", "RESY_API_KEY"]),
-                "default_used": cli_api_key.is_none() && !env_has_any(&["RESSY_API_KEY", "RESY_API_KEY"]),
+                "default_used": true,
             },
             "payment_method_id": {
                 "cli_flag": cli_payment_id.is_some(),
@@ -109,7 +81,7 @@ pub fn config_snapshot(cli_auth_token: Option<&str>, cli_api_key: Option<&str>, 
 }
 
 fn env_has_any(keys: &[&str]) -> bool {
-    keys.iter().any(|k| env::var(k).is_ok())
+    keys.iter().any(|key| env::var(key).is_ok())
 }
 
 fn suffix(value: &str, keep: usize) -> String {

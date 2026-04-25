@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use crate::api::ResyClient;
 use crate::cli::BookArgs;
 use crate::error::AppError;
-use crate::util::{decode_slot_id, parse_rfc3339_utc, quote_summary};
+use crate::util::{decode_slot_id, quote_summary, to_json_value};
 
 pub async fn run(
     client: &ResyClient,
@@ -13,12 +13,9 @@ pub async fn run(
 ) -> Result<Value, AppError> {
     let slot = decode_slot_id(&args.slot_id)?;
     let quote_details = client.details_with_commit(&slot.config_id, 0).await?;
-    let summary = quote_summary(&quote_details);
+    let summary = quote_summary(&quote_details)?;
 
-    let fee_amount = summary
-        .get("fee_amount")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.0);
+    let fee_amount = summary.fee_amount();
 
     if fee_amount > 0.0 && !args.allow_fee {
         return Err(AppError::new(
@@ -32,18 +29,13 @@ pub async fn run(
     {
         return Err(AppError::new(
             3,
-            format!(
-                "booking blocked by policy: fee {fee_amount} exceeds --max-fee {max_fee}"
-            ),
+            format!("booking blocked by policy: fee {fee_amount} exceeds --max-fee {max_fee}"),
         ));
     }
 
     if let Some(max_cutoff_hours) = args.max_cutoff_hours {
-        let fee_cutoff = summary.get("fee_cutoff").and_then(Value::as_str);
         let now = Utc::now();
-        let hours_until_cutoff = fee_cutoff
-            .and_then(parse_rfc3339_utc)
-            .map(|ts| (ts - now).num_hours());
+        let hours_until_cutoff = summary.fee_cutoff_at().map(|ts| (ts - now).num_hours());
 
         match hours_until_cutoff {
             Some(hours) if hours < max_cutoff_hours => {
@@ -102,7 +94,7 @@ pub async fn run(
     let booking_result = client
         .book(book_token, payment_method_id, false, false)
         .await?;
-    let booking_raw = serde_json::to_value(&booking_result).unwrap_or_else(|_| Value::Null);
+    let booking_raw = to_json_value(&booking_result)?;
 
     Ok(json!({
         "ok": true,
