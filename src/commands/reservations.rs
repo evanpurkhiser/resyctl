@@ -72,8 +72,8 @@ impl NormalizedReservation {
         Ok(Self {
             reservation_id: item.reservation_id,
             resy_token: item.resy_token.clone(),
-            day: item.day.clone(),
-            time_slot: item.time_slot.clone(),
+            day: item.day,
+            time_slot: item.time_slot,
             num_seats: item.num_seats,
             status: NormalizedStatus {
                 finished: item.status.as_ref().and_then(|s| s.finished),
@@ -100,11 +100,11 @@ impl NormalizedReservation {
                     .cancellation
                     .as_ref()
                     .and_then(|c| c.fee.as_ref())
-                    .and_then(|f| f.date_cut_off.clone()),
+                    .and_then(|f| f.date_cut_off),
                 refund_cutoff: item
                     .cancellation
                     .as_ref()
-                    .and_then(|c| c.date_refund_cut_off.clone()),
+                    .and_then(|c| c.date_refund_cut_off),
                 policy: item.cancellation_policy.clone(),
             },
             payment: NormalizedPayment {
@@ -191,7 +191,7 @@ pub async fn run(client: &ResyClient, args: ReservationsArgs) -> Result<Value, E
         .map(|item| NormalizedReservation::from_item(item, raw.venues.as_ref()))
         .collect::<Result<_, Error>>()?;
 
-    normalized.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
+    normalized.sort_by_key(|item| item.sort_key());
 
     let raw_value = to_json_value(&raw)?;
 

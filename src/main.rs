@@ -28,10 +28,10 @@ async fn main() -> ExitCode {
 
     match result {
         Ok(mut output) => {
-            if !include_raw {
-                if let Some(obj) = output.as_object_mut() {
-                    obj.remove("raw");
-                }
+            if !include_raw
+                && let Some(obj) = output.as_object_mut()
+            {
+                obj.remove("raw");
             }
             match print_json(&output) {
                 Ok(()) => ExitCode::SUCCESS,
