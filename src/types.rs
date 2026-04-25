@@ -95,6 +95,14 @@ pub struct SlotId {
     pub slot_type: Option<String>,
 }
 
+impl FromStr for SlotId {
+    type Err = AppError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        crate::util::decode_slot_id(value)
+    }
+}
+
 macro_rules! string_newtype {
     ($name:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

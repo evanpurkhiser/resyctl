@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 
-use crate::types::{DateArg, MonthArg, ResyToken, TimeArg};
+use crate::types::{DateArg, MonthArg, ResyToken, SlotId, TimeArg};
 
 pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
@@ -88,13 +88,13 @@ pub struct AvailabilityArgs {
 #[derive(Args, Debug)]
 pub struct QuoteArgs {
     /// Opaque slot id returned by the availability command.
-    pub slot_id: String,
+    pub slot_id: SlotId,
 }
 
 #[derive(Args, Debug)]
 pub struct BookArgs {
     /// Opaque slot id returned by the availability command.
-    pub slot_id: String,
+    pub slot_id: SlotId,
     /// Allow booking even if a cancellation fee applies.
     #[arg(long)]
     pub allow_fee: bool,
