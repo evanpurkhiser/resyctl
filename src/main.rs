@@ -15,7 +15,7 @@ use serde_json::json;
 
 use api::ResyClient;
 use cli::{Cli, Command};
-use config::{resolve_api_key, resolve_auth_token, resolve_payment_method_id};
+use config::{resolve_auth_token, resolve_client_key, resolve_payment_method_id};
 use error::AppError;
 use output::print_json;
 
@@ -52,8 +52,8 @@ async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
         Command::Config(_) => commands::config_cmd::run().await,
         command => {
             let auth_token = resolve_auth_token()?;
-            let api_key = resolve_api_key();
-            let client = ResyClient::new(&api_key, &auth_token)?;
+            let client_key = resolve_client_key();
+            let client = ResyClient::new(&client_key, &auth_token)?;
 
             match command {
                 Command::Search(args) => commands::search::run(&client, args).await,

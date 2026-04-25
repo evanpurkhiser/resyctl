@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 
 use crate::error::AppError;
 
-pub const DEFAULT_API_KEY: &str = "AIcdK2rLXG6TYwJseSbmrBAy3RP81ocd";
+pub const DEFAULT_CLIENT_KEY: &str = "AIcdK2rLXG6TYwJseSbmrBAy3RP81ocd";
 
 pub fn resolve_auth_token() -> Result<String, AppError> {
     let default_path = Path::new("secrets/resy_auth_token");
@@ -25,8 +25,8 @@ pub fn resolve_auth_token() -> Result<String, AppError> {
     ))
 }
 
-pub fn resolve_api_key() -> String {
-    DEFAULT_API_KEY.to_string()
+pub fn resolve_client_key() -> String {
+    DEFAULT_CLIENT_KEY.to_string()
 }
 
 pub fn resolve_payment_method_id(flag: Option<i64>) -> Option<i64> {
@@ -52,14 +52,14 @@ pub fn resolve_payment_method_id(flag: Option<i64>) -> Option<i64> {
 }
 
 pub fn config_snapshot(cli_payment_id: Option<i64>) -> Value {
-    let effective_api_key = resolve_api_key();
+    let effective_client_key = resolve_client_key();
     let effective_payment = resolve_payment_method_id(cli_payment_id);
     let auth_resolved = resolve_auth_token().ok();
 
     json!({
         "ok": true,
         "effective": {
-            "api_key_suffix": suffix(&effective_api_key, 6),
+            "client_key_suffix": suffix(&effective_client_key, 6),
             "auth_token_present": auth_resolved.is_some(),
             "auth_token_length": auth_resolved.as_ref().map(|s| s.len()),
             "payment_method_id": effective_payment,
@@ -68,7 +68,7 @@ pub fn config_snapshot(cli_payment_id: Option<i64>) -> Value {
             "auth_token": {
                 "file": Path::new("secrets/resy_auth_token").exists(),
             },
-            "api_key": {
+            "client_key": {
                 "default_used": true,
             },
             "payment_method_id": {

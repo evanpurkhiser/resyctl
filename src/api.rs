@@ -15,21 +15,21 @@ pub struct ResyClient {
 }
 
 impl ResyClient {
-    pub fn new(api_key: &str, auth_token: &str) -> Result<Self, AppError> {
-        Self::new_with_base_url(api_key, auth_token, "https://api.resy.com")
+    pub fn new(client_key: &str, auth_token: &str) -> Result<Self, AppError> {
+        Self::new_with_base_url(client_key, auth_token, "https://api.resy.com")
     }
 
     pub fn new_with_base_url(
-        api_key: &str,
+        client_key: &str,
         auth_token: &str,
         base_url: &str,
     ) -> Result<Self, AppError> {
         let mut headers = HeaderMap::new();
-        let auth = format!("ResyAPI api_key=\"{}\"", api_key);
+        let auth = format!("ResyAPI api_key=\"{}\"", client_key);
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&auth)
-                .map_err(|_| AppError::new(5, "invalid API key for header"))?,
+                .map_err(|_| AppError::new(5, "invalid client key for header"))?,
         );
         headers.insert(
             "x-resy-universal-auth",
@@ -54,17 +54,20 @@ impl ResyClient {
         })
     }
 
-    pub fn unauthenticated(api_key: &str) -> Result<Self, AppError> {
-        Self::unauthenticated_with_base_url(api_key, "https://api.resy.com")
+    pub fn unauthenticated(client_key: &str) -> Result<Self, AppError> {
+        Self::unauthenticated_with_base_url(client_key, "https://api.resy.com")
     }
 
-    pub fn unauthenticated_with_base_url(api_key: &str, base_url: &str) -> Result<Self, AppError> {
+    pub fn unauthenticated_with_base_url(
+        client_key: &str,
+        base_url: &str,
+    ) -> Result<Self, AppError> {
         let mut headers = HeaderMap::new();
-        let auth = format!("ResyAPI api_key=\"{}\"", api_key);
+        let auth = format!("ResyAPI api_key=\"{}\"", client_key);
         headers.insert(
             AUTHORIZATION,
             HeaderValue::from_str(&auth)
-                .map_err(|_| AppError::new(5, "invalid API key for header"))?,
+                .map_err(|_| AppError::new(5, "invalid client key for header"))?,
         );
 
         let http = reqwest::Client::builder()
@@ -308,7 +311,7 @@ mod tests {
     }
 
     fn authed_client(server: &MockServer) -> ResyClient {
-        ResyClient::new_with_base_url("test-api-key", "test-auth-token", &server.base_url())
+        ResyClient::new_with_base_url("test-client-key", "test-auth-token", &server.base_url())
             .expect("client should build")
     }
 

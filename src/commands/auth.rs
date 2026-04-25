@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::{AuthArgs, AuthCommand, LoginArgs};
-use crate::config::{resolve_api_key, resolve_auth_token};
+use crate::config::{resolve_auth_token, resolve_client_key};
 use crate::error::AppError;
 use crate::util::to_json_value;
 
@@ -17,9 +17,9 @@ pub async fn run(args: AuthArgs) -> Result<Value, AppError> {
 }
 
 async fn status() -> Result<Value, AppError> {
-    let api_key = resolve_api_key();
+    let client_key = resolve_client_key();
     let auth_token = resolve_auth_token()?;
-    let client = ResyClient::new(&api_key, &auth_token)?;
+    let client = ResyClient::new(&client_key, &auth_token)?;
     let user = client.user().await?;
     let name = [
         user.first_name.as_deref().unwrap_or_default(),
@@ -45,10 +45,10 @@ async fn status() -> Result<Value, AppError> {
 }
 
 async fn login(args: LoginArgs) -> Result<Value, AppError> {
-    let api_key = resolve_api_key();
+    let client_key = resolve_client_key();
     let password = resolve_password(&args)?;
 
-    let client = ResyClient::unauthenticated(&api_key)?;
+    let client = ResyClient::unauthenticated(&client_key)?;
     let auth = client.auth_password(&args.email, &password).await?;
     write_secrets(&auth)?;
 
