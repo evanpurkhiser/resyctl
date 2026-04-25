@@ -1,6 +1,38 @@
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
+
+/// Resy returns slot start/end as `"YYYY-MM-DD HH:MM:SS"` (space-delimited,
+/// no timezone), which doesn't match chrono's default NaiveDateTime serde
+/// format. This module decodes/encodes that wire format.
+mod naive_datetime_space {
+    use chrono::NaiveDateTime;
+    use serde::{Deserialize, Deserializer, Serializer, de::Error};
+
+    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+
+    pub fn serialize<S: Serializer>(
+        value: &Option<NaiveDateTime>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(dt) => serializer.serialize_str(&dt.format(FORMAT).to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<NaiveDateTime>, D::Error> {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(raw) => NaiveDateTime::parse_from_str(&raw, FORMAT)
+                .map(Some)
+                .map_err(Error::custom),
+            None => Ok(None),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthPasswordResponse {
@@ -89,8 +121,10 @@ pub struct SlotConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlotDate {
-    pub start: Option<String>,
-    pub end: Option<String>,
+    #[serde(default, with = "naive_datetime_space")]
+    pub start: Option<NaiveDateTime>,
+    #[serde(default, with = "naive_datetime_space")]
+    pub end: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,9 +139,9 @@ pub struct SlotPayment {
     pub cancellation_fee: Option<f64>,
     pub deposit_fee: Option<f64>,
     pub secs_cancel_cut_off: Option<i64>,
-    pub time_cancel_cut_off: Option<String>,
+    pub time_cancel_cut_off: Option<DateTime<Utc>>,
     pub secs_change_cut_off: Option<i64>,
-    pub time_change_cut_off: Option<String>,
+    pub time_change_cut_off: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,7 +159,7 @@ pub struct DetailsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookToken {
     pub value: Option<String>,
-    pub date_expires: Option<String>,
+    pub date_expires: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,7 +178,7 @@ pub struct CancellationDisplay {
 pub struct CancellationFee {
     pub amount: Option<f64>,
     pub tax: Option<f64>,
-    pub date_cut_off: Option<String>,
+    pub date_cut_off: Option<DateTime<Utc>>,
     pub display: Option<CancellationFeeDisplay>,
 }
 
@@ -155,12 +189,12 @@ pub struct CancellationFeeDisplay {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancellationRefund {
-    pub date_cut_off: Option<String>,
+    pub date_cut_off: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangePolicy {
-    pub date_cut_off: Option<String>,
+    pub date_cut_off: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,8 +252,8 @@ pub struct ReservationItem {
     pub reservation_id: Option<i64>,
     pub resy_token: Option<String>,
     pub venue_id: Option<i64>,
-    pub day: Option<String>,
-    pub time_slot: Option<String>,
+    pub day: Option<NaiveDate>,
+    pub time_slot: Option<NaiveTime>,
     pub num_seats: Option<i64>,
     pub status: Option<ReservationStatus>,
     pub venue: Option<ReservationVenue>,
@@ -244,14 +278,14 @@ pub struct ReservationVenue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReservationCancellation {
     pub allowed: Option<bool>,
-    pub date_refund_cut_off: Option<String>,
+    pub date_refund_cut_off: Option<DateTime<Utc>>,
     pub fee: Option<ReservationFee>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReservationFee {
     pub amount: Option<f64>,
-    pub date_cut_off: Option<String>,
+    pub date_cut_off: Option<DateTime<Utc>>,
     pub display: Option<CancellationFeeDisplay>,
 }
 

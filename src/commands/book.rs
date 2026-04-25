@@ -35,7 +35,7 @@ pub async fn run(
 
     if let Some(max_cutoff_hours) = args.max_cutoff_hours {
         let now = Utc::now();
-        let hours_until_cutoff = summary.fee_cutoff_at().map(|ts| (ts - now).num_hours());
+        let hours_until_cutoff = summary.fee_cutoff.map(|ts| (ts - now).num_hours());
 
         match hours_until_cutoff {
             Some(hours) if hours < max_cutoff_hours => {
@@ -101,7 +101,7 @@ pub async fn run(
         "booked": true,
         "slot": slot,
         "quote": summary,
-        "book_token_expires": commit_details.book_token.as_ref().and_then(|t| t.date_expires.as_deref()),
+        "book_token_expires": commit_details.book_token.as_ref().and_then(|t| t.date_expires),
         "reservation_id": booking_result.reservation_id,
         "resy_token": booking_result.resy_token,
         "payment_method_id": payment_method_id,

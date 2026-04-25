@@ -83,14 +83,6 @@ impl TimeArg {
     pub fn parse(value: &str) -> Result<Self, AppError> {
         Self::from_str(value)
     }
-
-    pub fn parse_slot_start(value: &str) -> Option<Self> {
-        NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S")
-            .map(|dt| Self(dt.time()))
-            .or_else(|_| chrono::DateTime::parse_from_rfc3339(value).map(|dt| Self(dt.time())))
-            .or_else(|_| NaiveTime::parse_from_str(value, "%H:%M").map(Self))
-            .ok()
-    }
 }
 
 impl fmt::Display for TimeArg {
@@ -112,10 +104,10 @@ impl FromStr for TimeArg {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlotId {
     pub config_id: String,
-    pub day: String,
+    pub day: NaiveDate,
     pub party_size: u8,
     pub venue_id: i64,
-    pub start: Option<String>,
+    pub start: Option<NaiveDateTime>,
     pub slot_type: Option<String>,
 }
 
@@ -150,13 +142,4 @@ mod tests {
         assert_eq!(time.to_string(), "18:30");
     }
 
-    #[test]
-    fn parses_slot_start_time_from_multiple_formats() {
-        let from_find = TimeArg::parse_slot_start("2026-04-26 18:30:00").expect("find style");
-        let from_rfc3339 =
-            TimeArg::parse_slot_start("2026-04-26T18:30:00-04:00").expect("rfc3339 style");
-
-        assert_eq!(from_find.to_string(), "18:30");
-        assert_eq!(from_rfc3339.to_string(), "18:30");
-    }
 }

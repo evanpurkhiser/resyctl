@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -12,8 +12,8 @@ use crate::util::to_json_value;
 struct NormalizedReservation {
     reservation_id: Option<i64>,
     resy_token: Option<String>,
-    day: Option<String>,
-    time_slot: Option<String>,
+    day: Option<NaiveDate>,
+    time_slot: Option<NaiveTime>,
     num_seats: Option<i64>,
     status: NormalizedStatus,
     venue: NormalizedVenue,
@@ -39,8 +39,8 @@ struct NormalizedCancellation {
     allowed: Option<bool>,
     fee_amount: Option<f64>,
     fee_display: Option<String>,
-    fee_cutoff: Option<String>,
-    refund_cutoff: Option<String>,
+    fee_cutoff: Option<DateTime<Utc>>,
+    refund_cutoff: Option<DateTime<Utc>>,
     policy: Option<Vec<String>>,
 }
 
@@ -140,11 +140,8 @@ impl NormalizedReservation {
         })
     }
 
-    fn sort_key(&self) -> (&str, &str) {
-        (
-            self.day.as_deref().unwrap_or_default(),
-            self.time_slot.as_deref().unwrap_or_default(),
-        )
+    fn sort_key(&self) -> (Option<NaiveDate>, Option<NaiveTime>) {
+        (self.day, self.time_slot)
     }
 }
 
@@ -159,12 +156,7 @@ fn venue_name_from_lookup(venues: Option<&Value>, venue_id: Option<i64>) -> Opti
 }
 
 fn is_upcoming_reservation(item: &ReservationItem, today: NaiveDate) -> bool {
-    let is_today_or_future = item
-        .day
-        .as_deref()
-        .and_then(|day| NaiveDate::parse_from_str(day, "%Y-%m-%d").ok())
-        .map(|day| day >= today)
-        .unwrap_or(false);
+    let is_today_or_future = item.day.map(|day| day >= today).unwrap_or(false);
 
     let not_finished = item
         .status

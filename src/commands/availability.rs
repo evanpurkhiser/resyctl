@@ -36,7 +36,7 @@ pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, A
                     args.lng,
                 )
                 .await?;
-            let slots = extract_slots(&raw, args.restaurant_id, &date_str, args.party_size)?;
+            let slots = extract_slots(&raw, args.restaurant_id, date, args.party_size)?;
             if !slots.is_empty() {
                 day_results.push(json!({
                     "date": date_str,
@@ -58,18 +58,18 @@ pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, A
     let date = args
         .date
         .ok_or_else(|| AppError::new(5, "--date is required for date availability mode"))?;
-    let date = date.to_string();
+    let date_str = date.to_string();
 
     let raw = client
         .find(
             args.restaurant_id,
-            &date,
+            &date_str,
             args.party_size,
             args.lat,
             args.lng,
         )
         .await?;
-    let mut slots = extract_slots(&raw, args.restaurant_id, &date, args.party_size)?;
+    let mut slots = extract_slots(&raw, args.restaurant_id, date.0, args.party_size)?;
 
     if let Some(seating) = args.seating {
         let seating_l = seating.to_lowercase();
@@ -94,7 +94,7 @@ pub async fn run(client: &ResyClient, args: AvailabilityArgs) -> Result<Value, A
         "ok": true,
         "mode": "times",
         "restaurant_id": args.restaurant_id,
-        "date": date,
+        "date": date_str,
         "party_size": args.party_size,
         "count": slots.len(),
         "slots": slots,

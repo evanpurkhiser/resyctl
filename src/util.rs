@@ -1,18 +1,12 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use chrono::Utc;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::error::AppError;
 use crate::models::{DetailsResponse, FindResponse};
 use crate::types::{SlotId, TimeArg};
-
-pub fn parse_rfc3339_utc(value: &str) -> Option<chrono::DateTime<Utc>> {
-    chrono::DateTime::parse_from_rfc3339(value)
-        .ok()
-        .map(|dt| dt.with_timezone(&Utc))
-}
 
 pub fn encode_slot_id(payload: &SlotId) -> Result<String, AppError> {
     let raw = serde_json::to_vec(payload)
@@ -33,16 +27,16 @@ pub struct SlotPaymentSummary {
     pub cancellation_fee: Option<f64>,
     pub deposit_fee: Option<f64>,
     pub secs_cancel_cut_off: Option<i64>,
-    pub time_cancel_cut_off: Option<String>,
+    pub time_cancel_cut_off: Option<DateTime<Utc>>,
     pub secs_change_cut_off: Option<i64>,
-    pub time_change_cut_off: Option<String>,
+    pub time_change_cut_off: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AvailableSlot {
     pub slot_id: String,
-    pub start: Option<String>,
-    pub end: Option<String>,
+    pub start: Option<NaiveDateTime>,
+    pub end: Option<NaiveDateTime>,
     #[serde(rename = "type")]
     pub slot_type: Option<String>,
     pub party_min: Option<i64>,
@@ -61,14 +55,14 @@ impl AvailableSlot {
     }
 
     pub fn local_start_time(&self) -> Option<TimeArg> {
-        self.start.as_deref().and_then(TimeArg::parse_slot_start)
+        self.start.map(|dt| TimeArg(dt.time()))
     }
 }
 
 pub fn extract_slots(
     find: &FindResponse,
     venue_id: i64,
-    day: &str,
+    day: NaiveDate,
     party_size: u8,
 ) -> Result<Vec<AvailableSlot>, AppError> {
     let mut out = Vec::new();
@@ -86,14 +80,14 @@ pub fn extract_slots(
             }
 
             let slot_type = slot.config.as_ref().and_then(|c| c.kind.clone());
-            let start = slot.date.as_ref().and_then(|d| d.start.clone());
-            let end = slot.date.as_ref().and_then(|d| d.end.clone());
+            let start = slot.date.as_ref().and_then(|d| d.start);
+            let end = slot.date.as_ref().and_then(|d| d.end);
             let slot_id = encode_slot_id(&SlotId {
                 config_id,
-                day: day.to_string(),
+                day,
                 party_size,
                 venue_id,
-                start: start.clone(),
+                start,
                 slot_type: slot_type.clone(),
             })?;
 
@@ -104,9 +98,9 @@ pub fn extract_slots(
                 cancellation_fee: p.cancellation_fee,
                 deposit_fee: p.deposit_fee,
                 secs_cancel_cut_off: p.secs_cancel_cut_off,
-                time_cancel_cut_off: p.time_cancel_cut_off.clone(),
+                time_cancel_cut_off: p.time_cancel_cut_off,
                 secs_change_cut_off: p.secs_change_cut_off,
-                time_change_cut_off: p.time_change_cut_off.clone(),
+                time_change_cut_off: p.time_change_cut_off,
             });
 
             out.push(AvailableSlot {
@@ -131,12 +125,12 @@ pub fn extract_slots(
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QuoteSummary {
-    pub book_token_expires: Option<String>,
+    pub book_token_expires: Option<DateTime<Utc>>,
     pub fee_amount: Option<f64>,
     pub fee_tax: Option<f64>,
-    pub fee_cutoff: Option<String>,
-    pub refund_cutoff: Option<String>,
-    pub change_cutoff: Option<String>,
+    pub fee_cutoff: Option<DateTime<Utc>>,
+    pub refund_cutoff: Option<DateTime<Utc>>,
+    pub change_cutoff: Option<DateTime<Utc>>,
     pub fee_display: Option<String>,
     pub payment_type: Option<String>,
     pub payment_amounts: Value,
@@ -148,10 +142,6 @@ pub struct QuoteSummary {
 impl QuoteSummary {
     pub fn fee_amount(&self) -> f64 {
         self.fee_amount.unwrap_or(0.0)
-    }
-
-    pub fn fee_cutoff_at(&self) -> Option<chrono::DateTime<Utc>> {
-        self.fee_cutoff.as_deref().and_then(parse_rfc3339_utc)
     }
 }
 
