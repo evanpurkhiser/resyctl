@@ -97,10 +97,10 @@ pub struct BookArgs {
     pub slot_id: SlotId,
     /// Allow booking even if a cancellation fee applies.
     #[arg(long)]
-    pub allow_fee: bool,
+    pub allow_cancellation_fee: bool,
     /// Maximum allowed cancellation fee in account currency.
     #[arg(long)]
-    pub max_fee: Option<f64>,
+    pub max_cancellation_fee: Option<f64>,
     /// Override payment method id used for this booking request.
     #[arg(long)]
     pub payment_method_id: Option<i64>,

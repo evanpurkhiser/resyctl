@@ -38,9 +38,9 @@ struct NormalizedVenue {
 #[derive(Debug, Serialize)]
 struct NormalizedCancellation {
     allowed: Option<bool>,
-    fee_amount: Option<f64>,
-    fee_display: Option<String>,
-    fee_cutoff: Option<DateTime<Utc>>,
+    cancellation_fee_amount: Option<f64>,
+    cancellation_fee_display: Option<String>,
+    cancellation_fee_cutoff: Option<DateTime<Utc>>,
     refund_cutoff: Option<DateTime<Utc>>,
     policy: Option<Vec<String>>,
 }
@@ -85,18 +85,18 @@ impl NormalizedReservation {
             },
             cancellation: NormalizedCancellation {
                 allowed: item.cancellation.as_ref().and_then(|c| c.allowed),
-                fee_amount: item
+                cancellation_fee_amount: item
                     .cancellation
                     .as_ref()
                     .and_then(|c| c.fee.as_ref())
                     .and_then(|f| f.amount),
-                fee_display: item
+                cancellation_fee_display: item
                     .cancellation
                     .as_ref()
                     .and_then(|c| c.fee.as_ref())
                     .and_then(|f| f.display.as_ref())
                     .and_then(|d| d.amount.clone()),
-                fee_cutoff: item
+                cancellation_fee_cutoff: item
                     .cancellation
                     .as_ref()
                     .and_then(|c| c.fee.as_ref())

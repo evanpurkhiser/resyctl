@@ -126,12 +126,12 @@ pub fn extract_slots(
 #[derive(Debug, Clone, Serialize)]
 pub struct QuoteSummary {
     pub book_token_expires: Option<DateTime<Utc>>,
-    pub fee_amount: Option<f64>,
-    pub fee_tax: Option<f64>,
-    pub fee_cutoff: Option<DateTime<Utc>>,
+    pub cancellation_fee_amount: Option<f64>,
+    pub cancellation_fee_tax: Option<f64>,
+    pub cancellation_fee_cutoff: Option<DateTime<Utc>>,
     pub refund_cutoff: Option<DateTime<Utc>>,
     pub change_cutoff: Option<DateTime<Utc>>,
-    pub fee_display: Option<String>,
+    pub cancellation_fee_display: Option<String>,
     pub payment_type: Option<String>,
     pub payment_amounts: Value,
     pub payment_methods: Value,
@@ -140,8 +140,8 @@ pub struct QuoteSummary {
 }
 
 impl QuoteSummary {
-    pub fn fee_amount(&self) -> f64 {
-        self.fee_amount.unwrap_or(0.0)
+    pub fn cancellation_fee_amount(&self) -> f64 {
+        self.cancellation_fee_amount.unwrap_or(0.0)
     }
 }
 
@@ -170,17 +170,17 @@ impl TryFrom<&DetailsResponse> for QuoteSummary {
 
         Ok(QuoteSummary {
             book_token_expires: details.book_token.as_ref().and_then(|t| t.date_expires),
-            fee_amount: details
+            cancellation_fee_amount: details
                 .cancellation
                 .as_ref()
                 .and_then(|c| c.fee.as_ref())
                 .and_then(|f| f.amount),
-            fee_tax: details
+            cancellation_fee_tax: details
                 .cancellation
                 .as_ref()
                 .and_then(|c| c.fee.as_ref())
                 .and_then(|f| f.tax),
-            fee_cutoff: details
+            cancellation_fee_cutoff: details
                 .cancellation
                 .as_ref()
                 .and_then(|c| c.fee.as_ref())
@@ -191,7 +191,7 @@ impl TryFrom<&DetailsResponse> for QuoteSummary {
                 .and_then(|c| c.refund.as_ref())
                 .and_then(|r| r.date_cut_off),
             change_cutoff: details.change.as_ref().and_then(|c| c.date_cut_off),
-            fee_display: details
+            cancellation_fee_display: details
                 .cancellation
                 .as_ref()
                 .and_then(|c| c.fee.as_ref())

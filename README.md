@@ -71,31 +71,31 @@ echo "${SLOT_ID:0:12}[…]"
 
 # eyJjb25maWdfa[…]
 
-# 3) Quote details for the slot (fee/cutoff/payment summary).
+# 3) Quote details for the slot (cancellation fee/cutoff/payment summary).
 resyctl quote "$SLOT_ID" \
   | jq '{
-      fee_amount: .quote.fee_amount,
-      fee_cutoff: .quote.fee_cutoff,
+      cancellation_fee_amount: .quote.cancellation_fee_amount,
+      cancellation_fee_cutoff: .quote.cancellation_fee_cutoff,
       payment_type: .quote.payment_type
     }'
 
 # {
-#   "fee_amount": 25,
-#   "fee_cutoff": "2026-05-22T17:30:00Z",
+#   "cancellation_fee_amount": 25,
+#   "cancellation_fee_cutoff": "2026-05-22T17:30:00Z",
 #   "payment_type": "free"
 # }
 
 # 4) Book the slot.
-# If this slot has a fee, pass --allow-fee.
-# Use --max-fee to cap fee amount.
-# "fee cutoff" is the timestamp after which canceling can incur a fee.
-# Before fee cutoff: cancel is free. After fee cutoff: fee may be charged.
-# Use --max-cutoff-hours to require at least N hours remaining until fee cutoff.
-# Example: --max-cutoff-hours 12 means "do not book if fee cutoff is within 12 hours".
-resyctl book "$SLOT_ID" --allow-fee --yes \
-  | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] fee_amount=\(.quote.fee_amount) fee_cutoff=\(.quote.fee_cutoff)"'
+# If this slot has a cancellation fee, pass --allow-cancellation-fee.
+# Use --max-cancellation-fee to cap the fee amount.
+# "cancellation fee cutoff" is the timestamp after which canceling can incur a fee.
+# Before the cutoff: cancel is free. After: the fee may be charged.
+# Use --max-cutoff-hours to require at least N hours remaining until the cutoff.
+# Example: --max-cutoff-hours 12 means "do not book if cutoff is within 12 hours".
+resyctl book "$SLOT_ID" --allow-cancellation-fee --yes \
+  | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] cancellation_fee_amount=\(.quote.cancellation_fee_amount) cancellation_fee_cutoff=\(.quote.cancellation_fee_cutoff)"'
 
-# reservation=867457046 token=Ys7435rTmPAu[…] fee_amount=25 fee_cutoff=2026-05-22T17:30:00Z
+# reservation=867457046 token=Ys7435rTmPAu[…] cancellation_fee_amount=25 cancellation_fee_cutoff=2026-05-22T17:30:00Z
 
 # 5) List upcoming reservations.
 resyctl reservations --upcoming \

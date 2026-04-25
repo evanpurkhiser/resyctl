@@ -15,27 +15,36 @@ pub async fn run(
     let quote_details = client.details_with_commit(&slot.config_id, 0).await?;
     let summary = QuoteSummary::try_from(&quote_details)?;
 
-    let fee_amount = summary.fee_amount();
+    let cancellation_fee_amount = summary.cancellation_fee_amount();
 
-    if fee_amount > 0.0 && !args.allow_fee {
+    if cancellation_fee_amount > 0.0 && !args.allow_cancellation_fee {
         return Err(AppError::new(
             3,
-            "booking blocked by policy: cancellation fee present; pass --allow-fee to override",
+            "booking blocked by policy: cancellation fee present; pass --allow-cancellation-fee to override",
         ));
     }
 
-    if let Some(max_fee) = args.max_fee
-        && fee_amount > max_fee
+    if let Some(max_fee) = args.max_cancellation_fee
+        && cancellation_fee_amount > max_fee
     {
         return Err(AppError::new(
             3,
-            format!("booking blocked by policy: fee {fee_amount} exceeds --max-fee {max_fee}"),
+            // Instead of constructing eerror strings here, can we use something like `thiserror`
+            // instead. we should have `CommandError` enum for each command module, which represents
+            // these errors and has the string formatting in the error enum
+            //
+            // This would remove the need for this error code thing
+            //
+            // It probaly can be Into<AppError> too or something
+            format!(
+                "booking blocked by policy: cancellation fee {cancellation_fee_amount} exceeds --max-cancellation-fee {max_fee}"
+            ),
         ));
     }
 
     if let Some(max_cutoff_hours) = args.max_cutoff_hours {
         let now = Utc::now();
-        let hours_until_cutoff = summary.fee_cutoff.map(|ts| (ts - now).num_hours());
+        let hours_until_cutoff = summary.cancellation_fee_cutoff.map(|ts| (ts - now).num_hours());
 
         match hours_until_cutoff {
             Some(hours) if hours < max_cutoff_hours => {
