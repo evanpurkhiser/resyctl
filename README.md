@@ -22,24 +22,32 @@ resy auth status
 ## Example Usage
 
 ```bash
-# 1) Search for a restaurant (show 2 results)
+# 1) Search for a restaurant.
 resy search "ishq" --limit 2 \
   | jq -r '.venues[:2][] | "\(.id): \(.name) [\(.locality // "?")]"'
 
-# Example output:
 # 84214: Ishq [New York]
 # 66703: Ishi Omakase & Premium Sake [New York]
 
-# Pick the first venue id for the rest of this flow.
+# Use the first result for the rest of the flow.
 VENUE_ID=84214
 
 # 2) Check availability for party size 2 on a specific date.
-resy availability "$VENUE_ID" --date 2026-05-01 --party-size 2 \
-  | jq -r '.slots[] | "\(.slot_id) | \(.start) | \(.type // "?")"'
+resy availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
+  | jq -r '.slots[:4][] | "\(.slot_id[0:12])[…] | \(.start) | \(.type // "?")"'
+
+# eyJjb25maWdfa[…] | 2026-05-23 12:15:00 | Bar Seat
+# eyJjb25maWdfa[…] | 2026-05-23 12:15:00 | Dining Room
+# eyJjb25maWdfa[…] | 2026-05-23 12:30:00 | Bar Seat
+# eyJjb25maWdfa[…] | 2026-05-23 12:30:00 | Dining Room
 
 # Save a slot id to quote/book.
-SLOT_ID=$(resy availability "$VENUE_ID" --date 2026-05-01 --party-size 2 \
-  | jq -r '.slots[0].slot_id')
+SLOT_ID=$(resy availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
+  | jq -r '.slots[] | select(.start=="2026-05-23 13:30:00" and .type=="Dining Room") | .slot_id' \
+  | head -n1)
+echo "${SLOT_ID:0:12}[…]"
+
+# eyJjb25maWdfa[…]
 
 # 3) Quote details for the slot (fee/cutoff/payment summary).
 resy quote "$SLOT_ID" \
@@ -47,31 +55,44 @@ resy quote "$SLOT_ID" \
       fee_amount: .quote.fee_amount,
       fee_display: .quote.fee_display,
       fee_cutoff: .quote.fee_cutoff,
-      payment_type: .quote.payment_type,
-      policy_text: .quote.policy_text
+      payment_type: .quote.payment_type
     }'
+
+# {
+#   "fee_amount": 25,
+#   "fee_display": "$25.00",
+#   "fee_cutoff": "2026-05-22T17:30:00Z",
+#   "payment_type": "free"
+# }
 
 # 4) Book the slot.
 # If this slot has a fee, pass --allow-fee (and optionally --max-fee / --max-cutoff-hours).
 resy book "$SLOT_ID" --allow-fee --yes \
-  | jq '{reservation_id, resy_token, book_token_expires, fee: .quote.fee_display}'
+  | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] fee=\(.quote.fee_display)"'
 
-# 5) List upcoming reservations (show one just made + another earlier that day).
+# reservation=867457046 token=Ys7435rTmPAu[…] fee=$25.00
+
+# 5) List upcoming reservations.
 resy reservations --upcoming \
-  | jq -r '.reservations[] | "\(.reservation_id) | \(.day) \(.time_slot) | \(.venue.name // "?")"'
+  | jq -r '.reservations
+    | sort_by(.day, .time_slot)
+    | .[:2]
+    | .[]
+    | "\(.reservation_id) | \(.day) \(.time_slot) | \(.venue.name // "?") | \(.resy_token[0:12])[…]"'
 
-# Isolate two reservations from the same day and choose the older one.
-OLDER_TOKEN=$(resy reservations --upcoming \
-  | jq -r '
-      .reservations
-      | map(select(.day == "2026-05-01"))
-      | sort_by(.time_slot)
-      | .[0].resy_token
-    ')
+# 867250480 | 2026-04-29 18:00:00 | MOKYO | 4hRnr95|mdVS[…]
+# 867248247 | 2026-05-01 18:30:00 | Antidote | A1xdLzgBrOOT[…]
 
-# 6) Cancel the older reservation from earlier in the day.
-resy cancel "$OLDER_TOKEN" --yes \
+# 6) Cancel the older upcoming reservation.
+CANCEL_TOKEN=$(resy reservations --upcoming \
+  | jq -r '.reservations | sort_by(.day, .time_slot) | .[0].resy_token')
+resy cancel "$CANCEL_TOKEN" --yes \
   | jq '{canceled, refund: .result.payment.transaction.refund}'
+
+# {
+#   "canceled": true,
+#   "refund": 1
+# }
 ```
 
 ## Notes
