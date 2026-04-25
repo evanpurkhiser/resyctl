@@ -49,18 +49,20 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
     match cli.command {
         Command::Auth(args) => commands::auth::run(args).await,
-        Command::Config(_) => commands::config_cmd::run(cli.payment_method_id).await,
+        Command::Config(_) => commands::config_cmd::run().await,
         command => {
             let auth_token = resolve_auth_token()?;
             let api_key = resolve_api_key();
-            let payment_method_id = resolve_payment_method_id(cli.payment_method_id);
             let client = ResyClient::new(&api_key, &auth_token)?;
 
             match command {
                 Command::Search(args) => commands::search::run(&client, args).await,
                 Command::Availability(args) => commands::availability::run(&client, args).await,
                 Command::Quote(args) => commands::quote::run(&client, args).await,
-                Command::Book(args) => commands::book::run(&client, args, payment_method_id).await,
+                Command::Book(args) => {
+                    let payment_method_id = resolve_payment_method_id(args.payment_method_id);
+                    commands::book::run(&client, args, payment_method_id).await
+                }
                 Command::Reservations(args) => commands::reservations::run(&client, args).await,
                 Command::PaymentMethods(args) => {
                     commands::payment_methods::run(&client, args).await

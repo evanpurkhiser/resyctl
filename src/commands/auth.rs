@@ -50,10 +50,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
 
     let client = ResyClient::unauthenticated(&api_key)?;
     let auth = client.auth_password(&args.email, &password).await?;
-
-    if args.write_secrets {
-        write_secrets(&auth)?;
-    }
+    write_secrets(&auth)?;
 
     Ok(json!({
         "ok": true,
@@ -61,7 +58,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
             "email": args.email,
             "token_present": auth.token.is_some(),
             "payment_method_id": auth.payment_method_id,
-            "wrote_secrets": args.write_secrets,
+            "wrote_secrets": true,
         },
         "raw": to_json_value(&auth)?,
     }))

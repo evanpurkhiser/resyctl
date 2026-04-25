@@ -21,7 +21,7 @@ pub fn resolve_auth_token() -> Result<String, AppError> {
 
     Err(AppError::new(
         5,
-        "missing auth token; run `resy auth login --write-secrets` first",
+        "missing auth token; run `resy auth login` first",
     ))
 }
 

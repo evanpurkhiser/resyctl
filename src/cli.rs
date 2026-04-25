@@ -6,11 +6,11 @@ pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
 
 #[derive(Parser, Debug)]
-#[command(name = "resy", about = "Resy CLI (JSON output only)")]
+#[command(
+    name = "resy",
+    about = "A Resy CLI focused on automation and agent use"
+)]
 pub struct Cli {
-    /// Override payment method id used for booking requests.
-    #[arg(long, global = true)]
-    pub payment_method_id: Option<i64>,
     #[command(subcommand)]
     pub command: Command,
 }
@@ -101,6 +101,9 @@ pub struct BookArgs {
     /// Maximum allowed cancellation fee in account currency.
     #[arg(long)]
     pub max_fee: Option<f64>,
+    /// Override payment method id used for this booking request.
+    #[arg(long)]
+    pub payment_method_id: Option<i64>,
     /// Minimum hours before fee cutoff required to proceed.
     #[arg(long)]
     pub max_cutoff_hours: Option<i64>,
@@ -173,7 +176,4 @@ pub struct LoginArgs {
     /// Path to file containing the login password.
     #[arg(long)]
     pub password_file: Option<String>,
-    /// Write token and payment method id to local secrets files.
-    #[arg(long)]
-    pub write_secrets: bool,
 }
