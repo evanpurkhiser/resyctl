@@ -36,6 +36,28 @@ mod naive_datetime_space {
     }
 }
 
+/// Resy uses 0/1 integers for boolean status flags. Decode them as `bool`
+/// so callers don't have to remember the convention.
+mod int_as_bool {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(
+        value: &Option<bool>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(b) => serializer.serialize_i64(if *b { 1 } else { 0 }),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<bool>, D::Error> {
+        Ok(Option::<i64>::deserialize(deserializer)?.map(|n| n != 0))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthPasswordResponse {
     pub token: Option<String>,
@@ -267,8 +289,10 @@ pub struct ReservationItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReservationStatus {
-    pub finished: Option<i64>,
-    pub no_show: Option<i64>,
+    #[serde(default, with = "int_as_bool")]
+    pub finished: Option<bool>,
+    #[serde(default, with = "int_as_bool")]
+    pub no_show: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -25,8 +25,8 @@ struct NormalizedReservation {
 
 #[derive(Debug, Serialize)]
 struct NormalizedStatus {
-    finished: Option<i64>,
-    no_show: Option<i64>,
+    finished: Option<bool>,
+    no_show: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -163,14 +163,14 @@ fn is_upcoming_reservation(item: &ReservationItem, today: NaiveDate) -> bool {
         .status
         .as_ref()
         .and_then(|s| s.finished)
-        .map(|value| value == 0)
+        .map(|finished| !finished)
         .unwrap_or(true);
 
     let not_no_show = item
         .status
         .as_ref()
         .and_then(|s| s.no_show)
-        .map(|value| value == 0)
+        .map(|no_show| !no_show)
         .unwrap_or(true);
 
     is_today_or_future && not_finished && not_no_show
