@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod models;
 mod output;
+mod state;
 mod types;
 mod util;
 

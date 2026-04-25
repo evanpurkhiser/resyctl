@@ -7,6 +7,7 @@ use crate::api::ResyClient;
 use crate::cli::{AuthArgs, AuthCommand, LoginArgs};
 use crate::config::{resolve_auth_token, resolve_client_key};
 use crate::error::AppError;
+use crate::state;
 use crate::util::to_json_value;
 
 pub async fn run(args: AuthArgs) -> Result<Value, AppError> {
@@ -50,7 +51,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
 
     let client = ResyClient::unauthenticated(&client_key)?;
     let auth = client.auth_password(&args.email, &password).await?;
-    write_secrets(&auth)?;
+    write_state(&auth)?;
 
     Ok(json!({
         "ok": true,
@@ -58,7 +59,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
             "email": args.email,
             "token_present": auth.token.is_some(),
             "payment_method_id": auth.payment_method_id,
-            "wrote_secrets": true,
+            "wrote_state": true,
         },
         "raw": to_json_value(&auth)?,
     }))
@@ -88,30 +89,16 @@ fn resolve_password(args: &LoginArgs) -> Result<String, AppError> {
     ))
 }
 
-fn write_secrets(auth: &crate::models::AuthPasswordResponse) -> Result<(), AppError> {
-    fs::create_dir_all("secrets")
-        .map_err(|e| AppError::new(4, format!("failed creating secrets directory: {e}")))?;
-
+fn write_state(auth: &crate::models::AuthPasswordResponse) -> Result<(), AppError> {
     let token = auth
         .token
         .as_deref()
         .ok_or_else(|| AppError::new(4, "auth response missing token"))?;
 
-    fs::write("secrets/resy_auth_token", format!("{token}\n"))
-        .map_err(|e| AppError::new(4, format!("failed writing secrets/resy_auth_token: {e}")))?;
-
+    let mut current = state::load().unwrap_or_default();
+    current.auth_token = Some(token.to_string());
     if let Some(payment_method_id) = auth.payment_method_id {
-        fs::write(
-            "secrets/resy_payment_method_id",
-            format!("{}\n", payment_method_id),
-        )
-        .map_err(|e| {
-            AppError::new(
-                4,
-                format!("failed writing secrets/resy_payment_method_id: {e}"),
-            )
-        })?;
+        current.payment_method_id = Some(payment_method_id);
     }
-
-    Ok(())
+    state::save(&current)
 }

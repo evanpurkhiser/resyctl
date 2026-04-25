@@ -1,28 +1,18 @@
 use std::env;
-use std::fs;
-use std::path::Path;
 
 use serde_json::{Value, json};
 
 use crate::error::AppError;
+use crate::state;
 
 pub const DEFAULT_CLIENT_KEY: &str = "AIcdK2rLXG6TYwJseSbmrBAy3RP81ocd";
 
 pub fn resolve_auth_token() -> Result<String, AppError> {
-    let default_path = Path::new("secrets/resy_auth_token");
-    if default_path.exists() {
-        let token = fs::read_to_string(default_path).map_err(|e| {
-            AppError::new(4, format!("failed reading secrets/resy_auth_token: {e}"))
-        })?;
-        if !token.trim().is_empty() {
-            return Ok(token.trim().to_string());
-        }
-    }
-
-    Err(AppError::new(
-        5,
-        "missing auth token; run `resyctl auth login` first",
-    ))
+    let token = state::load()?
+        .auth_token
+        .filter(|t| !t.trim().is_empty())
+        .ok_or_else(|| AppError::new(5, "missing auth token; run `resyctl auth login` first"))?;
+    Ok(token.trim().to_string())
 }
 
 pub fn resolve_client_key() -> String {
@@ -41,40 +31,39 @@ pub fn resolve_payment_method_id(flag: Option<i64>) -> Option<i64> {
         }
     }
 
-    let default_path = Path::new("secrets/resy_payment_method_id");
-    if default_path.exists()
-        && let Ok(v) = fs::read_to_string(default_path)
-        && let Ok(parsed) = v.trim().parse::<i64>()
-    {
-        return Some(parsed);
-    }
-    None
+    state::load().ok().and_then(|s| s.payment_method_id)
 }
 
 pub fn config_snapshot(cli_payment_id: Option<i64>) -> Value {
     let effective_client_key = resolve_client_key();
     let effective_payment = resolve_payment_method_id(cli_payment_id);
-    let auth_resolved = resolve_auth_token().ok();
+    let loaded_state = state::load().ok();
+    let state_path = state::state_path().ok();
+    let auth_token_resolved = loaded_state
+        .as_ref()
+        .and_then(|s| s.auth_token.as_deref())
+        .filter(|t| !t.trim().is_empty());
 
     json!({
         "ok": true,
         "effective": {
             "client_key_suffix": suffix(&effective_client_key, 6),
-            "auth_token_present": auth_resolved.is_some(),
-            "auth_token_length": auth_resolved.as_ref().map(|s| s.len()),
+            "auth_token_present": auth_token_resolved.is_some(),
+            "auth_token_length": auth_token_resolved.map(|s| s.len()),
             "payment_method_id": effective_payment,
         },
         "sources": {
-            "auth_token": {
-                "file": Path::new("secrets/resy_auth_token").exists(),
-            },
+            "state_file": state_path.as_ref().map(|p| p.display().to_string()),
             "client_key": {
                 "default_used": true,
             },
             "payment_method_id": {
                 "cli_flag": cli_payment_id.is_some(),
                 "env": env_has_any(&["RESSY_PAYMENT_METHOD_ID", "RESY_PAYMENT_METHOD_ID"]),
-                "file": Path::new("secrets/resy_payment_method_id").exists(),
+                "state": loaded_state
+                    .as_ref()
+                    .map(|s| s.payment_method_id.is_some())
+                    .unwrap_or(false),
             }
         }
     })
