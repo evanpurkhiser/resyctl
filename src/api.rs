@@ -44,7 +44,7 @@ impl ResyClient {
 
         let http = reqwest::Client::builder()
             .default_headers(headers)
-            .user_agent("ressy-cli/0.1.0")
+            .user_agent("resy/0.1.0")
             .build()
             .map_err(|e| AppError::new(4, format!("failed to build HTTP client: {e}")))?;
 
@@ -69,7 +69,7 @@ impl ResyClient {
 
         let http = reqwest::Client::builder()
             .default_headers(headers)
-            .user_agent("ressy-cli/0.1.0")
+            .user_agent("resy/0.1.0")
             .build()
             .map_err(|e| AppError::new(4, format!("failed to build HTTP client: {e}")))?;
 

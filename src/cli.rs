@@ -6,7 +6,7 @@ pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
 
 #[derive(Parser, Debug)]
-#[command(name = "ressy", about = "Resy CLI (JSON output only)")]
+#[command(name = "resy", about = "Resy CLI (JSON output only)")]
 pub struct Cli {
     /// Override payment method id used for booking requests.
     #[arg(long, global = true)]
