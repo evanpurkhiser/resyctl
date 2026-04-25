@@ -3,7 +3,6 @@ use serde_json::{Value, json};
 use crate::api::ResyClient;
 use crate::cli::SearchArgs;
 use crate::error::Error;
-use crate::util::to_json_value;
 
 pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, Error> {
     let raw = client
@@ -14,17 +13,16 @@ pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, Error> 
         .hits
         .iter()
         .map(|hit| {
-            Ok(json!({
+            json!({
                 "id": hit.id.as_ref().and_then(|id| id.resy),
                 "name": hit.name,
                 "locality": hit.locality,
                 "neighborhood": hit.neighborhood,
                 "cuisine": hit.cuisine,
                 "rating": hit.rating.as_ref().and_then(|r| r.average),
-                "raw": to_json_value(hit)?,
-            }))
+            })
         })
-        .collect::<Result<_, Error>>()?;
+        .collect();
 
     Ok(json!({
         "ok": true,
