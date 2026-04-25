@@ -57,13 +57,13 @@ pub struct AvailabilityArgs {
     /// Resy venue id.
     pub restaurant_id: i64,
     /// Month to scan in YYYY-MM format.
-    #[arg(long, value_parser = MonthArg::parse)]
+    #[arg(long)]
     pub month: Option<MonthArg>,
     /// In month mode, return only days that have at least one slot.
     #[arg(long)]
     pub days: bool,
     /// Specific date to query in YYYY-MM-DD format.
-    #[arg(long, value_parser = DateArg::parse)]
+    #[arg(long)]
     pub date: Option<DateArg>,
     /// Party size used in availability lookup.
     #[arg(long, default_value_t = 2)]
@@ -72,10 +72,10 @@ pub struct AvailabilityArgs {
     #[arg(long)]
     pub seating: Option<String>,
     /// Filter to slots at or after this local time (HH:MM).
-    #[arg(long, value_parser = TimeArg::parse)]
+    #[arg(long)]
     pub time_after: Option<TimeArg>,
     /// Filter to slots at or before this local time (HH:MM).
-    #[arg(long, value_parser = TimeArg::parse)]
+    #[arg(long)]
     pub time_before: Option<TimeArg>,
     /// Latitude used for availability requests.
     #[arg(long, default_value_t = DEFAULT_LAT)]

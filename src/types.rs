@@ -12,10 +12,6 @@ pub struct MonthArg {
 }
 
 impl MonthArg {
-    pub fn parse(value: &str) -> Result<Self, AppError> {
-        Self::from_str(value)
-    }
-
     pub fn days(self) -> impl Iterator<Item = NaiveDate> {
         let first = self.first_day;
         std::iter::successors(Some(first), move |day| {
@@ -49,12 +45,6 @@ impl FromStr for MonthArg {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DateArg(pub NaiveDate);
 
-impl DateArg {
-    pub fn parse(value: &str) -> Result<Self, AppError> {
-        Self::from_str(value)
-    }
-}
-
 impl fmt::Display for DateArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.format("%Y-%m-%d"))
@@ -78,12 +68,6 @@ impl FromStr for DateArg {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimeArg(pub NaiveTime);
-
-impl TimeArg {
-    pub fn parse(value: &str) -> Result<Self, AppError> {
-        Self::from_str(value)
-    }
-}
 
 impl fmt::Display for TimeArg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
