@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Write;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
@@ -50,11 +51,12 @@ pub fn save(state: &State) -> Result<(), AppError> {
     let contents = serde_json::to_string_pretty(state)
         .map_err(|e| AppError::new(4, format!("failed serializing state: {e}")))?;
 
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+
+    let mut file = options
         .open(&path)
         .map_err(|e| AppError::new(4, format!("failed opening {}: {e}", path.display())))?;
     file.write_all(contents.as_bytes())
