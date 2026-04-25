@@ -53,24 +53,27 @@ echo "${SLOT_ID:0:12}[…]"
 resyctl quote "$SLOT_ID" \
   | jq '{
       fee_amount: .quote.fee_amount,
-      fee_display: .quote.fee_display,
       fee_cutoff: .quote.fee_cutoff,
       payment_type: .quote.payment_type
     }'
 
 # {
 #   "fee_amount": 25,
-#   "fee_display": "$25.00",
 #   "fee_cutoff": "2026-05-22T17:30:00Z",
 #   "payment_type": "free"
 # }
 
 # 4) Book the slot.
-# If this slot has a fee, pass --allow-fee (and optionally --max-fee / --max-cutoff-hours).
+# If this slot has a fee, pass --allow-fee.
+# Use --max-fee to cap fee amount.
+# "fee cutoff" is the timestamp after which canceling can incur a fee.
+# Before fee cutoff: cancel is free. After fee cutoff: fee may be charged.
+# Use --max-cutoff-hours to require at least N hours remaining until fee cutoff.
+# Example: --max-cutoff-hours 12 means "do not book if fee cutoff is within 12 hours".
 resyctl book "$SLOT_ID" --allow-fee --yes \
-  | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] fee=\(.quote.fee_display)"'
+  | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] fee_amount=\(.quote.fee_amount) fee_cutoff=\(.quote.fee_cutoff)"'
 
-# reservation=867457046 token=Ys7435rTmPAu[…] fee=$25.00
+# reservation=867457046 token=Ys7435rTmPAu[…] fee_amount=25 fee_cutoff=2026-05-22T17:30:00Z
 
 # 5) List upcoming reservations.
 resyctl reservations --upcoming \
