@@ -1,0 +1,12 @@
+password
+secrets/
+mitm/
+prior art/
+fixtures/
+fixtures/auth_password.json
+fixtures/api/user.json
+
+
+# Added by cargo
+
+/target
