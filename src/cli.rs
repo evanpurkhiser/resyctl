@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use clap::ArgAction;
 
 pub const DEFAULT_LAT: f64 = 40.7128;
 pub const DEFAULT_LNG: f64 = -74.0060;
@@ -22,6 +23,8 @@ pub enum Command {
     Availability(AvailabilityArgs),
     Quote(QuoteArgs),
     Book(BookArgs),
+    Reservations(ReservationsArgs),
+    Cancel(CancelArgs),
     Auth(AuthArgs),
     Config(ConfigArgs),
 }
@@ -74,6 +77,24 @@ pub struct BookArgs {
     pub max_fee: Option<f64>,
     #[arg(long)]
     pub max_cutoff_hours: Option<i64>,
+    #[arg(long)]
+    pub yes: bool,
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ReservationsArgs {
+    #[arg(long)]
+    pub resy_token: String,
+}
+
+#[derive(Args, Debug)]
+pub struct CancelArgs {
+    #[arg(long)]
+    pub resy_token: String,
+    #[arg(long, action = ArgAction::Set, default_value_t = true)]
+    pub refresh_token: bool,
     #[arg(long)]
     pub yes: bool,
     #[arg(long)]

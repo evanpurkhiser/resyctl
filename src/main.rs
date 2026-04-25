@@ -3,6 +3,7 @@ mod cli;
 mod commands;
 mod config;
 mod error;
+mod models;
 mod output;
 mod types;
 mod util;
@@ -62,6 +63,8 @@ async fn run(cli: Cli) -> Result<serde_json::Value, AppError> {
                 Command::Availability(args) => commands::availability::run(&client, args).await,
                 Command::Quote(args) => commands::quote::run(&client, args).await,
                 Command::Book(args) => commands::book::run(&client, args, payment_method_id).await,
+                Command::Reservations(args) => commands::reservations::run(&client, args).await,
+                Command::Cancel(args) => commands::cancel::run(&client, args).await,
                 Command::Auth(_) | Command::Config(_) => {
                     Err(AppError::new(5, "unreachable command state"))
                 }

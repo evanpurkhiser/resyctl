@@ -1,8 +1,12 @@
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use crate::error::AppError;
-use crate::types::SlotId;
+use crate::models::{
+    BookResponse, CancelResponse, DetailsResponse, FindResponse, ReservationLookupResponse,
+    SearchResponse,
+};
 
 #[derive(Clone)]
 pub struct ResyClient {
@@ -66,7 +70,7 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("auth request failed: {e}")))?;
 
-        read_json_response(response).await
+        read_json_value_response(response).await
     }
 
     pub async fn user(&self) -> Result<Value, AppError> {
@@ -76,17 +80,23 @@ impl ResyClient {
             .send()
             .await
             .map_err(|e| AppError::new(4, format!("user request failed: {e}")))?;
-        read_json_response(response).await
+        read_json_value_response(response).await
     }
 
-    pub async fn search(&self, query: &str, limit: u32, lat: f64, lng: f64) -> Result<Value, AppError> {
+    pub async fn search(
+        &self,
+        query: &str,
+        limit: u32,
+        lat: f64,
+        lng: f64,
+    ) -> Result<SearchResponse, AppError> {
         let body = json!({
             "query": query,
             "per_page": limit,
             "types": ["venue"],
             "geo": { "latitude": lat, "longitude": lng }
         });
-        self.post_json("https://api.resy.com/3/venuesearch/search", body)
+        self.post_json_typed("https://api.resy.com/3/venuesearch/search", body)
             .await
     }
 
@@ -97,7 +107,7 @@ impl ResyClient {
         party_size: u8,
         lat: f64,
         lng: f64,
-    ) -> Result<Value, AppError> {
+    ) -> Result<FindResponse, AppError> {
         let response = self
             .http
             .get("https://api.resy.com/4/find")
@@ -112,25 +122,70 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("find request failed: {e}")))?;
 
-        read_json_response(response).await
+        read_json_typed_response(response).await
     }
 
-    pub async fn details(&self, slot: &SlotId) -> Result<Value, AppError> {
+    pub async fn details_with_commit(
+        &self,
+        config_id: &str,
+        commit: i32,
+    ) -> Result<DetailsResponse, AppError> {
         let body = json!({
-            "commit": 1,
-            "config_id": slot.config_id,
-            "day": slot.day,
-            "party_size": slot.party_size,
+            "config_id": config_id,
+            "commit": commit,
+            "struct_items": [],
         });
-        self.post_json("https://api.resy.com/3/details", body).await
+        self.post_json_typed("https://api.resy.com/3/details", body).await
     }
 
-    pub async fn book(&self, book_token: &str, payment_method_id: Option<i64>) -> Result<Value, AppError> {
+    pub async fn reservation_by_token(
+        &self,
+        resy_token: &str,
+    ) -> Result<ReservationLookupResponse, AppError> {
+        let response = self
+            .http
+            .get("https://api.resy.com/3/user/reservations")
+            .query(&[("resy_token", resy_token)])
+            .send()
+            .await
+            .map_err(|e| AppError::new(4, format!("reservations request failed: {e}")))?;
+
+        read_json_typed_response(response).await
+    }
+
+    pub async fn cancel(&self, resy_token: &str) -> Result<CancelResponse, AppError> {
+        let response = self
+            .http
+            .post("https://api.resy.com/3/cancel")
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .form(&[("resy_token", resy_token)])
+            .send()
+            .await
+            .map_err(|e| AppError::new(4, format!("cancel request failed: {e}")))?;
+
+        read_json_typed_response(response).await
+    }
+
+    pub async fn book(
+        &self,
+        book_token: &str,
+        payment_method_id: Option<i64>,
+        replace: bool,
+        venue_marketing_opt_in: bool,
+    ) -> Result<BookResponse, AppError> {
         let mut form = vec![("book_token", book_token.to_string())];
         if let Some(id) = payment_method_id {
             let payment = json!({ "id": id }).to_string();
             form.push(("struct_payment_method", payment));
         }
+        form.push((
+            "replace",
+            if replace { "1" } else { "0" }.to_string(),
+        ));
+        form.push((
+            "venue_marketing_opt_in",
+            if venue_marketing_opt_in { "1" } else { "0" }.to_string(),
+        ));
 
         let response = self
             .http
@@ -141,10 +196,14 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("book request failed: {e}")))?;
 
-        read_json_response(response).await
+        read_json_typed_response(response).await
     }
 
-    async fn post_json(&self, url: &str, body: Value) -> Result<Value, AppError> {
+    async fn post_json_typed<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        body: Value,
+    ) -> Result<T, AppError> {
         let response = self
             .http
             .post(url)
@@ -154,11 +213,33 @@ impl ResyClient {
             .await
             .map_err(|e| AppError::new(4, format!("request failed: {e}")))?;
 
-        read_json_response(response).await
+        read_json_typed_response(response).await
     }
 }
 
-async fn read_json_response(response: reqwest::Response) -> Result<Value, AppError> {
+async fn read_json_typed_response<T: DeserializeOwned>(
+    response: reqwest::Response,
+) -> Result<T, AppError> {
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| AppError::new(4, format!("failed reading response body: {e}")))?;
+
+    if !status.is_success() {
+        let parsed = serde_json::from_str::<Value>(&body)
+            .unwrap_or_else(|_| json!({"raw": body, "parse_error": true}));
+        return Err(AppError::new(
+            4,
+            format!("api error {}: {}", status.as_u16(), parsed),
+        ));
+    }
+
+    serde_json::from_str::<T>(&body)
+        .map_err(|e| AppError::new(4, format!("failed to deserialize API response: {e}")))
+}
+
+async fn read_json_value_response(response: reqwest::Response) -> Result<Value, AppError> {
     let status = response.status();
     let body = response
         .text()

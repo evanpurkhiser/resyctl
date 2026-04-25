@@ -12,8 +12,8 @@ pub async fn run(
     cli_payment_method_id: Option<i64>,
 ) -> Result<Value, AppError> {
     let slot = decode_slot_id(&args.slot_id)?;
-    let details = client.details(&slot).await?;
-    let summary = quote_summary(&details);
+    let quote_details = client.details_with_commit(&slot.config_id, 0).await?;
+    let summary = quote_summary(&quote_details);
 
     let fee_amount = summary
         .get("fee_amount")
@@ -64,18 +64,21 @@ pub async fn run(
         }
     }
 
-    let book_token = details
-        .pointer("/book_token/value")
-        .and_then(Value::as_str)
+    let commit_details = client.details_with_commit(&slot.config_id, 1).await?;
+
+    let book_token = commit_details
+        .book_token
+        .as_ref()
+        .and_then(|t| t.value.as_deref())
         .ok_or_else(|| AppError::new(4, "details response missing book_token.value"))?;
 
     let payment_method_id = cli_payment_method_id.or_else(|| {
-        details
-            .pointer("/user/payment_methods")
-            .and_then(Value::as_array)
+        quote_details
+            .user
+            .as_ref()
+            .and_then(|u| u.payment_methods.as_ref())
             .and_then(|arr| arr.first())
-            .and_then(|v| v.get("id"))
-            .and_then(Value::as_i64)
+            .and_then(|v| v.id)
     });
 
     if args.dry_run {
@@ -96,14 +99,20 @@ pub async fn run(
         ));
     }
 
-    let booking_result = client.book(book_token, payment_method_id).await?;
+    let booking_result = client
+        .book(book_token, payment_method_id, false, false)
+        .await?;
+    let booking_raw = serde_json::to_value(&booking_result).unwrap_or_else(|_| Value::Null);
 
     Ok(json!({
         "ok": true,
         "booked": true,
         "slot": slot,
         "quote": summary,
+        "book_token_expires": commit_details.book_token.as_ref().and_then(|t| t.date_expires.as_deref()),
+        "reservation_id": booking_result.reservation_id,
+        "resy_token": booking_result.resy_token,
         "payment_method_id": payment_method_id,
-        "result": booking_result,
+        "result": booking_raw,
     }))
 }

@@ -6,24 +6,20 @@ use crate::error::AppError;
 
 pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, AppError> {
     let raw = client.search(&args.query, args.limit, args.lat, args.lng).await?;
-    let hits = raw
-        .get("search")
-        .and_then(|v| v.get("hits"))
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-
-    let venues: Vec<Value> = hits
+    let venues: Vec<Value> = raw
+        .search
+        .hits
         .iter()
         .map(|hit| {
+            let raw_hit = serde_json::to_value(hit).unwrap_or_else(|_| Value::Null);
             json!({
-                "id": hit.pointer("/id/resy").and_then(Value::as_i64),
-                "name": hit.get("name").and_then(Value::as_str),
-                "locality": hit.get("locality").and_then(Value::as_str),
-                "neighborhood": hit.get("neighborhood").and_then(Value::as_str),
-                "cuisine": hit.get("cuisine").cloned(),
-                "rating": hit.pointer("/rating/average").and_then(Value::as_f64),
-                "raw": hit,
+                "id": hit.id.as_ref().and_then(|id| id.resy),
+                "name": hit.name,
+                "locality": hit.locality,
+                "neighborhood": hit.neighborhood,
+                "cuisine": hit.cuisine,
+                "rating": hit.rating.as_ref().and_then(|r| r.average),
+                "raw": raw_hit,
             })
         })
         .collect();
@@ -33,5 +29,6 @@ pub async fn run(client: &ResyClient, args: SearchArgs) -> Result<Value, AppErro
         "query": args.query,
         "count": venues.len(),
         "venues": venues,
+        "raw": raw,
     }))
 }
