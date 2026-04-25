@@ -20,9 +20,10 @@ pub struct State {
 }
 
 pub fn state_path() -> Result<PathBuf, AppError> {
-    let home =
-        dirs::home_dir().ok_or_else(|| AppError::new(5, "could not resolve home directory"))?;
-    Ok(home.join(".local/etc/resyctl/state.json"))
+    let base = dirs::state_dir()
+        .or_else(|| dirs::home_dir().map(|h| h.join(".local/state")))
+        .ok_or_else(|| AppError::new(5, "could not resolve state directory"))?;
+    Ok(base.join("resyctl/state.json"))
 }
 
 pub fn load() -> Result<State, AppError> {
