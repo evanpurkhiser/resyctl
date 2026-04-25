@@ -8,6 +8,7 @@ pub const DEFAULT_LNG: f64 = -74.0060;
 #[derive(Parser, Debug)]
 #[command(
     name = "resyctl",
+    version,
     about = "A Resy CLI focused on automation and agent use"
 )]
 pub struct Cli {
