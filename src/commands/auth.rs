@@ -1,5 +1,4 @@
-use std::fs;
-use std::path::Path;
+use std::io::{self, BufRead, Write};
 
 use serde_json::{Value, json};
 
@@ -47,22 +46,32 @@ async fn status() -> Result<Value, AppError> {
 
 async fn login(args: LoginArgs) -> Result<Value, AppError> {
     let client_key = resolve_client_key();
+    let email = resolve_email(&args)?;
     let password = resolve_password(&args)?;
 
     let client = ResyClient::unauthenticated(&client_key)?;
-    let auth = client.auth_password(&args.email, &password).await?;
+    let auth = client.auth_password(&email, &password).await?;
     write_state(&auth)?;
 
     Ok(json!({
         "ok": true,
         "login": {
-            "email": args.email,
+            "email": email,
             "token_present": auth.token.is_some(),
             "payment_method_id": auth.payment_method_id,
             "wrote_state": true,
         },
         "raw": to_json_value(&auth)?,
     }))
+}
+
+fn resolve_email(args: &LoginArgs) -> Result<String, AppError> {
+    if let Some(email) = &args.email
+        && !email.trim().is_empty()
+    {
+        return Ok(email.trim().to_string());
+    }
+    prompt_line("Email: ")
 }
 
 fn resolve_password(args: &LoginArgs) -> Result<String, AppError> {
@@ -72,21 +81,32 @@ fn resolve_password(args: &LoginArgs) -> Result<String, AppError> {
         return Ok(password.clone());
     }
 
-    if let Some(path) = &args.password_file {
-        let p = Path::new(path);
-        let value = fs::read_to_string(p)
-            .map_err(|e| AppError::new(5, format!("failed reading password file {path}: {e}")))?;
-        let trimmed = value.trim().to_string();
-        if trimmed.is_empty() {
-            return Err(AppError::new(5, format!("password file {path} is empty")));
-        }
-        return Ok(trimmed);
+    let password = rpassword::prompt_password("Password: ")
+        .map_err(|e| AppError::new(5, format!("failed reading password: {e}")))?;
+    if password.is_empty() {
+        return Err(AppError::new(5, "password cannot be empty"));
     }
+    Ok(password)
+}
 
-    Err(AppError::new(
-        5,
-        "auth login requires --password or --password-file",
-    ))
+fn prompt_line(prompt: &str) -> Result<String, AppError> {
+    let mut stdout = io::stdout();
+    stdout
+        .write_all(prompt.as_bytes())
+        .and_then(|_| stdout.flush())
+        .map_err(|e| AppError::new(5, format!("failed writing prompt: {e}")))?;
+
+    let mut buf = String::new();
+    io::stdin()
+        .lock()
+        .read_line(&mut buf)
+        .map_err(|e| AppError::new(5, format!("failed reading input: {e}")))?;
+
+    let trimmed = buf.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(AppError::new(5, "input cannot be empty"));
+    }
+    Ok(trimmed)
 }
 
 fn write_state(auth: &crate::models::AuthPasswordResponse) -> Result<(), AppError> {

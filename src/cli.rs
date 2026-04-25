@@ -161,19 +161,16 @@ pub struct AuthArgs {
 pub enum AuthCommand {
     /// Validate current auth token and return account summary.
     Status,
-    /// Log in with email/password and optionally persist token files.
+    /// Log in with email/password and persist credentials to state.
     Login(LoginArgs),
 }
 
 #[derive(Args, Debug)]
 pub struct LoginArgs {
-    /// Email address for Resy login.
+    /// Email address for Resy login. Prompted if omitted.
     #[arg(long)]
-    pub email: String,
-    /// Password for Resy login (prefer password-file for safety).
+    pub email: Option<String>,
+    /// Password for Resy login. Prompted (hidden) if omitted.
     #[arg(long)]
     pub password: Option<String>,
-    /// Path to file containing the login password.
-    #[arg(long)]
-    pub password_file: Option<String>,
 }

@@ -15,7 +15,7 @@ cargo install --path .
 ## Configure auth
 
 ```bash
-resyctl auth login --email "you@example.com" --password-file ./password
+resyctl auth login   # prompts for email and password
 resyctl auth status
 ```
 
