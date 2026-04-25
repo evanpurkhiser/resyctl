@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 use crate::api::ResyClient;
 use crate::cli::{AuthArgs, AuthCommand, LoginArgs};
-use crate::config::{resolve_auth_token, resolve_client_key};
+use crate::config::resolve_client_key;
 use crate::error::AppError;
 use crate::state;
 use crate::util::to_json_value;
@@ -18,8 +18,7 @@ pub async fn run(args: AuthArgs) -> Result<Value, AppError> {
 
 async fn status() -> Result<Value, AppError> {
     let client_key = resolve_client_key();
-    let auth_token = resolve_auth_token()?;
-    let client = ResyClient::new(&client_key, &auth_token)?;
+    let client = ResyClient::from_state(&client_key)?;
     let user = client.user().await?;
     let name = [
         user.first_name.as_deref().unwrap_or_default(),
@@ -51,7 +50,7 @@ async fn login(args: LoginArgs) -> Result<Value, AppError> {
 
     let client = ResyClient::unauthenticated(&client_key)?;
     let auth = client.auth_password(&email, &password).await?;
-    write_state(&auth)?;
+    write_state(&email, &password, &auth)?;
 
     Ok(json!({
         "ok": true,
@@ -109,13 +108,19 @@ fn prompt_line(prompt: &str) -> Result<String, AppError> {
     Ok(trimmed)
 }
 
-fn write_state(auth: &crate::models::AuthPasswordResponse) -> Result<(), AppError> {
+fn write_state(
+    email: &str,
+    password: &str,
+    auth: &crate::models::AuthPasswordResponse,
+) -> Result<(), AppError> {
     let token = auth
         .token
         .as_deref()
         .ok_or_else(|| AppError::new(4, "auth response missing token"))?;
 
     let mut current = state::load().unwrap_or_default();
+    current.email = Some(email.to_string());
+    current.password = Some(password.to_string());
     current.auth_token = Some(token.to_string());
     if let Some(payment_method_id) = auth.payment_method_id {
         current.payment_method_id = Some(payment_method_id);

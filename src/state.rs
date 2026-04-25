@@ -10,6 +10,10 @@ use crate::error::AppError;
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct State {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_id: Option<i64>,

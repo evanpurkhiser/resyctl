@@ -2,18 +2,9 @@ use std::env;
 
 use serde_json::{Value, json};
 
-use crate::error::AppError;
 use crate::state;
 
 pub const DEFAULT_CLIENT_KEY: &str = "AIcdK2rLXG6TYwJseSbmrBAy3RP81ocd";
-
-pub fn resolve_auth_token() -> Result<String, AppError> {
-    let token = state::load()?
-        .auth_token
-        .filter(|t| !t.trim().is_empty())
-        .ok_or_else(|| AppError::new(5, "missing auth token; run `resyctl auth login` first"))?;
-    Ok(token.trim().to_string())
-}
 
 pub fn resolve_client_key() -> String {
     DEFAULT_CLIENT_KEY.to_string()
