@@ -1,4 +1,4 @@
-# resy
+# resyctl
 
 A Rust command-line client for Resy focused on automation-friendly, JSON-only output.
 It is designed for agents and scripts to drive booking workflows and other
@@ -15,15 +15,15 @@ cargo install --path .
 ## Configure auth
 
 ```bash
-resy auth login --email "you@example.com" --password-file ./password
-resy auth status
+resyctl auth login --email "you@example.com" --password-file ./password
+resyctl auth status
 ```
 
 ## Example Usage
 
 ```bash
 # 1) Search for a restaurant.
-resy search "ishq" --limit 2 \
+resyctl search "ishq" --limit 2 \
   | jq -r '.venues[:2][] | "\(.id): \(.name) [\(.locality // "?")]"'
 
 # 84214: Ishq [New York]
@@ -33,7 +33,7 @@ resy search "ishq" --limit 2 \
 VENUE_ID=84214
 
 # 2) Check availability for party size 2 on a specific date.
-resy availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
+resyctl availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
   | jq -r '.slots[:4][] | "\(.slot_id[0:12])[…] | \(.start) | \(.type // "?")"'
 
 # eyJjb25maWdfa[…] | 2026-05-23 12:15:00 | Bar Seat
@@ -42,7 +42,7 @@ resy availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
 # eyJjb25maWdfa[…] | 2026-05-23 12:30:00 | Dining Room
 
 # Save a slot id to quote/book.
-SLOT_ID=$(resy availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
+SLOT_ID=$(resyctl availability "$VENUE_ID" --date 2026-05-23 --party-size 2 \
   | jq -r '.slots[] | select(.start=="2026-05-23 13:30:00" and .type=="Dining Room") | .slot_id' \
   | head -n1)
 echo "${SLOT_ID:0:12}[…]"
@@ -50,7 +50,7 @@ echo "${SLOT_ID:0:12}[…]"
 # eyJjb25maWdfa[…]
 
 # 3) Quote details for the slot (fee/cutoff/payment summary).
-resy quote "$SLOT_ID" \
+resyctl quote "$SLOT_ID" \
   | jq '{
       fee_amount: .quote.fee_amount,
       fee_display: .quote.fee_display,
@@ -67,13 +67,13 @@ resy quote "$SLOT_ID" \
 
 # 4) Book the slot.
 # If this slot has a fee, pass --allow-fee (and optionally --max-fee / --max-cutoff-hours).
-resy book "$SLOT_ID" --allow-fee --yes \
+resyctl book "$SLOT_ID" --allow-fee --yes \
   | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] fee=\(.quote.fee_display)"'
 
 # reservation=867457046 token=Ys7435rTmPAu[…] fee=$25.00
 
 # 5) List upcoming reservations.
-resy reservations --upcoming \
+resyctl reservations --upcoming \
   | jq -r '.reservations
     | sort_by(.day, .time_slot)
     | .[:2]
@@ -84,9 +84,9 @@ resy reservations --upcoming \
 # 867248247 | 2026-05-01 18:30:00 | Antidote | A1xdLzgBrOOT[…]
 
 # 6) Cancel the older upcoming reservation.
-CANCEL_TOKEN=$(resy reservations --upcoming \
+CANCEL_TOKEN=$(resyctl reservations --upcoming \
   | jq -r '.reservations | sort_by(.day, .time_slot) | .[0].resy_token')
-resy cancel "$CANCEL_TOKEN" --yes \
+resyctl cancel "$CANCEL_TOKEN" --yes \
   | jq '{canceled, refund: .result.payment.transaction.refund}'
 
 # {
@@ -98,5 +98,5 @@ resy cancel "$CANCEL_TOKEN" --yes \
 ## Notes
 
 - All command output is JSON.
-- `resy book` enforces cancellation-fee guardrails by default.
-- Use `resy payment-methods` to inspect available payment method IDs.
+- `resyctl book` enforces cancellation-fee guardrails by default.
+- Use `resyctl payment-methods` to inspect available payment method IDs.
