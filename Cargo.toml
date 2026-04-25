@@ -2,6 +2,10 @@
 name = "resyctl"
 version = "0.1.0"
 edition = "2024"
+description = "Automation-friendly CLI for Resy with JSON-first output"
+license = "MIT"
+repository = "https://github.com/evanpurkhiser/resyctl"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
