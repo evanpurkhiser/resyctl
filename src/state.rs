@@ -27,6 +27,13 @@ pub fn state_path() -> Result<PathBuf, Error> {
     Ok(base.join("resyctl/state.json"))
 }
 
+pub fn cookies_path() -> Result<PathBuf, Error> {
+    let base = dirs::state_dir()
+        .or_else(|| dirs::home_dir().map(|h| h.join(".local/state")))
+        .ok_or(IoError::StateDirUnresolved)?;
+    Ok(base.join("resyctl/cookies.json"))
+}
+
 pub fn load() -> Result<State, Error> {
     let path = state_path()?;
     if !path.exists() {
