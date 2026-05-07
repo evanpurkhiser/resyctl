@@ -6,7 +6,7 @@ A Rust command-line client for Resy focused on automation-friendly, JSON-only ou
 It is designed for agents and scripts to drive booking workflows and other
 reservation automations.
 
-> [!WARNING]
+> [!CAUTION]
 > Using `resyctl` puts your account at risk of violating the Resy Terms of
 > Service! Use this at your own risk. It is not unheard of for accounts to be
 > permanently terminated when using 3rd party booking tools!
