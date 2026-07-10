@@ -66,6 +66,9 @@ pub enum InputError {
     #[error("--date is required for date availability mode")]
     AvailabilityDateModeRequiresDate,
 
+    #[error("{command} requires --authed because it uses account-specific Resy APIs")]
+    AuthRequired { command: &'static str },
+
     #[error("booking requires --yes (or use --dry-run)")]
     BookRequiresYes,
 
@@ -100,7 +103,9 @@ pub enum BookingPolicyError {
     #[error("booking blocked by policy: cancellation fee present; pass --allow-cancellation-fee to override")]
     CancellationFeePresent,
 
-    #[error("booking blocked by policy: cancellation fee {actual} exceeds --max-cancellation-fee {max}")]
+    #[error(
+        "booking blocked by policy: cancellation fee {actual} exceeds --max-cancellation-fee {max}"
+    )]
     CancellationFeeExceeded { actual: f64, max: f64 },
 
     #[error("booking blocked by policy: cutoff {hours}h is less than --max-cutoff-hours {max}")]

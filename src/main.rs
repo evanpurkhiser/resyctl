@@ -17,7 +17,7 @@ use serde_json::json;
 use api::ResyClient;
 use cli::{Cli, Command};
 use config::{resolve_client_key, resolve_payment_method_id};
-use error::Error;
+use error::{Error, InputError};
 use output::print_json;
 
 #[tokio::main]
@@ -58,12 +58,27 @@ fn emit_error(e: &Error) {
 }
 
 async fn run(cli: Cli) -> Result<serde_json::Value, Error> {
+    let authed = cli.authed;
+
     match cli.command {
         Command::Auth(args) => commands::auth::run(args).await,
         Command::Config(_) => commands::config_cmd::run().await,
         command => {
+            if let Some(command_name) = auth_required_command(&command)
+                && !authed
+            {
+                return Err(InputError::AuthRequired {
+                    command: command_name,
+                }
+                .into());
+            }
+
             let client_key = resolve_client_key();
-            let client = ResyClient::from_state(&client_key)?;
+            let client = if authed {
+                ResyClient::from_state(&client_key)?
+            } else {
+                ResyClient::anonymous(&client_key)?
+            };
 
             match command {
                 Command::Search(args) => commands::search::run(&client, args).await,
@@ -84,5 +99,20 @@ async fn run(cli: Cli) -> Result<serde_json::Value, Error> {
                 )),
             }
         }
+    }
+}
+
+fn auth_required_command(command: &Command) -> Option<&'static str> {
+    match command {
+        Command::Book(_) => Some("book"),
+        Command::Reservations(_) => Some("reservations"),
+        Command::PaymentMethods(_) => Some("payment-methods"),
+        Command::Cancel(_) => Some("cancel"),
+        Command::Search(_)
+        | Command::Venue(_)
+        | Command::Availability(_)
+        | Command::Quote(_)
+        | Command::Auth(_)
+        | Command::Config(_) => None,
     }
 }

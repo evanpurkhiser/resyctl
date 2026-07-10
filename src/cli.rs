@@ -14,6 +14,10 @@ pub const DEFAULT_LNG: f64 = -74.0060;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
+    /// Use the saved Resy auth token/session for this request.
+    /// Read-only commands run anonymously by default.
+    #[arg(long, global = true)]
+    pub authed: bool,
     /// Include the raw Resy JSON response under the top-level `raw` key.
     /// Off by default; the curated fields are usually enough.
     #[arg(long, global = true)]

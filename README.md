@@ -43,6 +43,9 @@ cargo install --path .
 
 ## Configure auth
 
+Search, venue lookup, availability, and quote requests run anonymously by
+default. Account-specific commands require `--authed` and saved credentials.
+
 ```bash
 resyctl auth login   # prompts for email and password
 resyctl auth status
@@ -113,13 +116,13 @@ resyctl quote "$SLOT_ID" \
 # Before the cutoff: cancel is free. After: the fee may be charged.
 # Use --max-cutoff-hours to require at least N hours remaining until the cutoff.
 # Example: --max-cutoff-hours 12 means "do not book if cutoff is within 12 hours".
-resyctl book "$SLOT_ID" --allow-cancellation-fee --yes \
+resyctl book "$SLOT_ID" --authed --allow-cancellation-fee --yes \
   | jq -r '"reservation=\(.reservation_id) token=\(.resy_token[0:12])[…] cancellation_fee_amount=\(.quote.cancellation_fee_amount) cancellation_fee_cutoff=\(.quote.cancellation_fee_cutoff)"'
 
 # reservation=867457046 token=Ys7435rTmPAu[…] cancellation_fee_amount=25 cancellation_fee_cutoff=2026-05-22T17:30:00Z
 
 # 6) List upcoming reservations.
-resyctl reservations --upcoming \
+resyctl reservations --authed --upcoming \
   | jq -r '.reservations
     | sort_by(.day, .time_slot)
     | .[:2]
@@ -130,9 +133,9 @@ resyctl reservations --upcoming \
 # 867248247 | 2026-05-01 18:30:00 | Antidote | A1xdLzgBrOOT[…]
 
 # 7) Cancel the older upcoming reservation.
-CANCEL_TOKEN=$(resyctl reservations --upcoming \
+CANCEL_TOKEN=$(resyctl reservations --authed --upcoming \
   | jq -r '.reservations | sort_by(.day, .time_slot) | .[0].resy_token')
-resyctl cancel "$CANCEL_TOKEN" --yes \
+resyctl cancel "$CANCEL_TOKEN" --authed --yes \
   | jq '{canceled, refund: .result.payment.transaction.refund}'
 
 # {
@@ -145,6 +148,6 @@ resyctl cancel "$CANCEL_TOKEN" --yes \
 
 - All command output is JSON.
 - `resyctl book` enforces cancellation-fee guardrails by default.
-- Use `resyctl payment-methods` to inspect available payment method IDs.
+- Use `resyctl payment-methods --authed` to inspect available payment method IDs.
 - Pass `--raw` if the normalized fields are insufficient — it includes the
   full underlying Resy response under a top-level `raw` key.

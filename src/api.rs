@@ -7,7 +7,7 @@ use cookie_store::serde::json as cookie_store_json;
 use reqwest::header::{
     ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue,
 };
-use reqwest::{RequestBuilder, Response, StatusCode, Version};
+use reqwest::{RequestBuilder, Response, StatusCode};
 use reqwest_cookie_store::{CookieStore, CookieStoreMutex};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -34,7 +34,7 @@ pub struct ResyClient {
     client_key: String,
     auth_token: Arc<Mutex<Option<String>>>,
     credentials: Option<Credentials>,
-    cookie_store: Arc<CookieStoreMutex>,
+    cookie_store: Option<Arc<CookieStoreMutex>>,
 }
 
 impl ResyClient {
@@ -44,15 +44,19 @@ impl ResyClient {
         auth_token: &str,
         base_url: &str,
     ) -> Result<Self, Error> {
-        Self::build(client_key, base_url, Some(auth_token), None)
+        Self::build(client_key, base_url, Some(auth_token), None, false)
     }
 
     pub fn unauthenticated(client_key: &str) -> Result<Self, Error> {
-        Self::build(client_key, "https://api.resy.com", None, None)
+        Self::build(client_key, "https://api.resy.com", None, None, false)
+    }
+
+    pub fn anonymous(client_key: &str) -> Result<Self, Error> {
+        Self::build(client_key, "https://api.resy.com", None, None, false)
     }
 
     /// Build a client wired to persisted state: uses the saved auth token and
-    /// automatically re-authenticates on a 401 if email/password are stored.
+    /// intentionally does not load or persist cookies.
     pub fn from_state(client_key: &str) -> Result<Self, Error> {
         let s = state::load()?;
         let credentials = match (s.email.as_deref(), s.password.as_deref()) {
@@ -74,6 +78,7 @@ impl ResyClient {
             "https://api.resy.com",
             s.auth_token.as_deref(),
             credentials,
+            false,
         )
     }
 
@@ -82,8 +87,9 @@ impl ResyClient {
         base_url: &str,
         auth_token: Option<&str>,
         credentials: Option<Credentials>,
+        use_cookie_store: bool,
     ) -> Result<Self, Error> {
-        let cookie_store = Self::load_cookie_store()?;
+        let cookie_store = use_cookie_store.then(Self::load_cookie_store).transpose()?;
 
         let mut default_headers = HeaderMap::new();
         default_headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
@@ -94,10 +100,14 @@ impl ResyClient {
         default_headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US;q=1.0"));
         default_headers.insert("priority", HeaderValue::from_static("u=3, i"));
 
-        let http = reqwest::Client::builder()
+        let mut http = reqwest::Client::builder()
             .user_agent("Resy/3.40 (com.resy.ResyApp; build:8044; iOS 26.2.0) Alamofire/5.11.1")
-            .default_headers(default_headers)
-            .cookie_provider(cookie_store.clone())
+            .default_headers(default_headers);
+        if let Some(cookie_store) = &cookie_store {
+            http = http.cookie_provider(cookie_store.clone());
+        }
+
+        let http = http
             .build()
             .map_err(|e| Error::Api(ApiError::BuildClient(e)))?;
 
@@ -123,8 +133,7 @@ impl ResyClient {
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .form(&[("email", email), ("password", password)]);
 
-        let response = self
-            .with_preferred_http_version(request)
+        let response = request
             .send()
             .await
             .map_err(|e| Error::Api(ApiError::AuthRequest(e)))?;
@@ -309,8 +318,7 @@ impl ResyClient {
         if let Some(token) = token {
             req = req.header("x-resy-universal-auth", token);
         }
-        self.with_preferred_http_version(req)
-            .send()
+        req.send()
             .await
             .map_err(|e| Error::Api(ApiError::Request(e)))
             .and_then(|response| {
@@ -319,12 +327,8 @@ impl ResyClient {
             })
     }
 
-    fn with_preferred_http_version(&self, req: RequestBuilder) -> RequestBuilder {
-        if self.base_url.starts_with("https://") {
-            return req.version(Version::HTTP_2);
-        }
-
-        req
+    fn client_auth_header(&self) -> String {
+        format!("ResyAPI api_key=\"{}\"", self.client_key)
     }
 
     fn load_cookie_store() -> Result<Arc<CookieStoreMutex>, Error> {
@@ -344,6 +348,10 @@ impl ResyClient {
     }
 
     fn persist_cookie_store(&self) -> Result<(), Error> {
+        let Some(cookie_store) = &self.cookie_store else {
+            return Ok(());
+        };
+
         let path = state::cookies_path()?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|source| IoError::CreateDir {
@@ -363,8 +371,7 @@ impl ResyClient {
         })?;
 
         let mut writer = io::BufWriter::new(file);
-        let store = self
-            .cookie_store
+        let store = cookie_store
             .lock()
             .map_err(|_| Error::Internal("cookie store lock poisoned".to_string()))?;
 
@@ -395,10 +402,6 @@ impl ResyClient {
         state::save(&s)?;
 
         Ok(true)
-    }
-
-    fn client_auth_header(&self) -> String {
-        format!("ResyAPI api_key=\"{}\"", self.client_key)
     }
 
     fn endpoint(&self, path: &str) -> String {
