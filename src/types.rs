@@ -31,9 +31,11 @@ impl FromStr for MonthArg {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let first_day = NaiveDate::parse_from_str(&format!("{value}-01"), "%Y-%m-%d")
-            .map_err(|_| InputError::InvalidMonth {
-                value: value.to_string(),
+        let first_day =
+            NaiveDate::parse_from_str(&format!("{value}-01"), "%Y-%m-%d").map_err(|_| {
+                InputError::InvalidMonth {
+                    value: value.to_string(),
+                }
             })?;
         Ok(Self { first_day })
     }
@@ -179,5 +181,4 @@ mod tests {
         assert_eq!(date.to_string(), "2026-04-26");
         assert_eq!(time.to_string(), "18:30");
     }
-
 }

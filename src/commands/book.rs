@@ -33,7 +33,9 @@ pub async fn run(
 
     if let Some(max_cutoff_hours) = args.max_cutoff_hours {
         let now = Utc::now();
-        let hours_until_cutoff = summary.cancellation_fee_cutoff.map(|ts| (ts - now).num_hours());
+        let hours_until_cutoff = summary
+            .cancellation_fee_cutoff
+            .map(|ts| (ts - now).num_hours());
 
         match hours_until_cutoff {
             Some(hours) if hours < max_cutoff_hours => {

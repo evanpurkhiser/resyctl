@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use std::{fs, io};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+use std::sync::Arc;
+use std::{fs, io};
 
 use cookie_store::serde::json as cookie_store_json;
 use reqwest::header::{
@@ -413,17 +413,15 @@ fn normalize_base_url(base_url: &str) -> String {
     base_url.trim_end_matches('/').to_string()
 }
 
-async fn read_json_response<T: DeserializeOwned>(
-    response: reqwest::Response,
-) -> Result<T, Error> {
+async fn read_json_response<T: DeserializeOwned>(response: reqwest::Response) -> Result<T, Error> {
     let status = response.status();
     let body = response
         .text()
         .await
         .map_err(|e| Error::Api(ApiError::ReadBody(e)))?;
 
-    let parsed = serde_json::from_str::<Value>(&body)
-        .map_err(|e| Error::Api(ApiError::ParseBodyJson(e)))?;
+    let parsed =
+        serde_json::from_str::<Value>(&body).map_err(|e| Error::Api(ApiError::ParseBodyJson(e)))?;
 
     if !status.is_success() {
         return Err(Error::Api(ApiError::ErrorStatusCode {

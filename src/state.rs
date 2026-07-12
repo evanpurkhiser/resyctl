@@ -46,14 +46,13 @@ pub fn load() -> Result<State, Error> {
     if contents.trim().is_empty() {
         return Ok(State::default());
     }
-    serde_json::from_str(&contents)
-        .map_err(|source| {
-            IoError::ParseStateFile {
-                path: path.display().to_string(),
-                source,
-            }
-            .into()
-        })
+    serde_json::from_str(&contents).map_err(|source| {
+        IoError::ParseStateFile {
+            path: path.display().to_string(),
+            source,
+        }
+        .into()
+    })
 }
 
 pub fn save(state: &State) -> Result<(), Error> {

@@ -28,9 +28,7 @@ async fn main() -> ExitCode {
 
     match result {
         Ok(mut output) => {
-            if !include_raw
-                && let Some(obj) = output.as_object_mut()
-            {
+            if !include_raw && let Some(obj) = output.as_object_mut() {
                 obj.remove("raw");
             }
             match print_json(&output) {
@@ -94,9 +92,9 @@ async fn run(cli: Cli) -> Result<serde_json::Value, Error> {
                     commands::payment_methods::run(&client, args).await
                 }
                 Command::Cancel(args) => commands::cancel::run(&client, args).await,
-                Command::Auth(_) | Command::Config(_) => Err(Error::Internal(
-                    "unreachable command state".to_string(),
-                )),
+                Command::Auth(_) | Command::Config(_) => {
+                    Err(Error::Internal("unreachable command state".to_string()))
+                }
             }
         }
     }

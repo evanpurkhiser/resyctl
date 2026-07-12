@@ -100,7 +100,9 @@ pub enum InputError {
 #[derive(Debug, Error, IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub enum BookingPolicyError {
-    #[error("booking blocked by policy: cancellation fee present; pass --allow-cancellation-fee to override")]
+    #[error(
+        "booking blocked by policy: cancellation fee present; pass --allow-cancellation-fee to override"
+    )]
     CancellationFeePresent,
 
     #[error(
