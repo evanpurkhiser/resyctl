@@ -2,17 +2,21 @@
 
 [![Build Status](https://github.com/evanpurkhiser/resyctl/actions/workflows/main.yml/badge.svg)](https://github.com/evanpurkhiser/resyctl/actions/workflows/main.yml)
 
-A Rust command-line client for Resy focused on automation-friendly, JSON-only output.
-It is designed for agents and scripts to drive booking workflows and other
-reservation automations.
+A Rust command-line client for Resy focused on automation-friendly,
+JSON-only output.
+It is designed for agents and scripts to drive booking workflows
+and other reservation automations.
 
 > [!CAUTION]
 > Using `resyctl` puts your account at risk of violating the Resy Terms of
-> Service! Use this at your own risk. It is not unheard of for accounts to be
-> permanently terminated when using 3rd party booking tools!
+> Service!
+> Use this at your own risk.
+> It is not unheard of for accounts to be permanently terminated
+> when using 3rd party booking tools!
 
 > [!NOTE]
-> See [my `resy-booking` skill](https://github.com/evanpurkhiser/dots-personal/blob/main/machines/server/agents/skills/resy-booking/SKILL.md)
+> See
+> [my `resy-booking` skill](https://github.com/evanpurkhiser/dots-personal/blob/main/machines/server/agents/skills/resy-booking/SKILL.md)
 > for an example of how to drive `resyctl` from an agent.
 
 ## Install
@@ -43,8 +47,9 @@ cargo install --path .
 
 ## Configure auth
 
-Search, venue lookup, availability, and quote requests run anonymously by
-default. Account-specific commands require `--authed` and saved credentials.
+Search, venue lookup, availability,
+and quote requests run anonymously by default.
+Account-specific commands require `--authed` and saved credentials.
 
 ```bash
 resyctl auth login   # prompts for email and password
@@ -148,6 +153,7 @@ resyctl cancel "$CANCEL_TOKEN" --authed --yes \
 
 - All command output is JSON.
 - `resyctl book` enforces cancellation-fee guardrails by default.
-- Use `resyctl payment-methods --authed` to inspect available payment method IDs.
-- Pass `--raw` if the normalized fields are insufficient — it includes the
-  full underlying Resy response under a top-level `raw` key.
+- Use `resyctl payment-methods --authed` to inspect available payment method
+  IDs.
+- Pass `--raw` if the normalized fields are insufficient —
+  it includes the full underlying Resy response under a top-level `raw` key.
